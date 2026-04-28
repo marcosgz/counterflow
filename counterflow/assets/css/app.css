@@ -22,8 +22,10 @@
 
 /* ── design tokens ────────────────────────────────────────── */
 
-:root,
-:where([data-theme="light"]) {
+/* Defaults = light. Wrapped in :where to keep specificity at 0 so the
+ * explicit data-theme rules below always win regardless of source order.
+ */
+:where(:root) {
   --bg:        #f6f5f0;
   --panel:     #ffffff;
   --panel-2:   #fafaf6;
@@ -46,7 +48,8 @@
   --shadow:    0 1px 0 rgba(20, 17, 11, 0.04), 0 1px 2px rgba(20, 17, 11, 0.05);
 }
 
-:where([data-theme="dark"]) {
+/* Explicit dark mode — attribute selector beats :where(:root). */
+[data-theme="dark"] {
   --bg:        #0a0b0d;
   --panel:     #11131a;
   --panel-2:   #0d1015;
@@ -69,9 +72,32 @@
   --shadow:    0 1px 0 rgba(0, 0, 0, 0.5), 0 8px 24px rgba(0, 0, 0, 0.35);
 }
 
-/* Auto theme — used until user picks a preference */
+/* Explicit light mode — same specificity as dark, set order is what matters. */
+[data-theme="light"] {
+  --bg:        #f6f5f0;
+  --panel:     #ffffff;
+  --panel-2:   #fafaf6;
+  --line:      #e6e3da;
+  --line-2:    #d6d2c5;
+  --ink:       #14110b;
+  --ink-2:     #4a4838;
+  --ink-3:     #87836f;
+  --ink-mute:  #b3ae97;
+  --long:      #0d8b6e;
+  --long-bg:   rgba(13, 139, 110, 0.10);
+  --short:     #c2185b;
+  --short-bg:  rgba(194, 24, 91, 0.10);
+  --warn:      #b3631e;
+  --warn-bg:   rgba(179, 99, 30, 0.12);
+  --info:      #1668b5;
+  --accent:    #14110b;
+  --grid:      rgba(20, 17, 11, 0.06);
+  --shadow:    0 1px 0 rgba(20, 17, 11, 0.04), 0 1px 2px rgba(20, 17, 11, 0.05);
+}
+
+/* Auto = follow OS, only when no explicit data-theme is set. */
 @media (prefers-color-scheme: dark) {
-  :where(html:not([data-theme])) {
+  html:not([data-theme]) {
     --bg:        #0a0b0d;
     --panel:     #11131a;
     --panel-2:   #0d1015;
