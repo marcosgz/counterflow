@@ -113,19 +113,21 @@ defmodule CounterflowWeb.DebugLive do
                     </span>
                   </td>
                   <td>
-                    <span :if={row.side} class="cf-pill" style={side_pill_style(row.side)}>
-                      {String.upcase(to_string(row.side))}
+                    <span :if={Map.get(row, :side)} class="cf-pill" style={side_pill_style(Map.get(row, :side))}>
+                      {String.upcase(to_string(Map.get(row, :side)))}
                     </span>
-                    <span :if={!row.side} style="color: var(--ink-3);">—</span>
+                    <span :if={!Map.get(row, :side)} style="color: var(--ink-3);">—</span>
                   </td>
-                  <td class="num">{format_score(row.score)}</td>
-                  <td class="num" style="color: var(--ink-3);">{format_score(row.threshold)}</td>
-                  <td class="num" style={delta_style(row.score, row.threshold)}>{format_delta(row.score, row.threshold)}</td>
+                  <td class="num">{format_score(Map.get(row, :score))}</td>
+                  <td class="num" style="color: var(--ink-3);">{format_score(Map.get(row, :threshold))}</td>
+                  <td class="num" style={delta_style(Map.get(row, :score), Map.get(row, :threshold))}>
+                    {format_delta(Map.get(row, :score), Map.get(row, :threshold))}
+                  </td>
                   <td style="font-size: 10px; color: var(--ink-3);">
-                    {top_components(row.components)}
+                    {top_components(Map.get(row, :components))}
                   </td>
                   <td class="num" style="color: var(--ink-3);">
-                    {row.candle_time && Calendar.strftime(row.candle_time, "%H:%M:%S")}
+                    {format_time(Map.get(row, :candle_time))}
                   </td>
                   <td class="num" style="color: var(--ink-3);">
                     {Calendar.strftime(row.evaluated_at, "%H:%M:%S")}
@@ -173,7 +175,7 @@ defmodule CounterflowWeb.DebugLive do
 
     scores =
       rows
-      |> Enum.map(& &1.score)
+      |> Enum.map(&Map.get(&1, :score))
       |> Enum.reject(&is_nil/1)
       |> Enum.map(&to_float/1)
 
@@ -201,6 +203,10 @@ defmodule CounterflowWeb.DebugLive do
     end)
     |> Enum.join(" ")
   end
+
+  defp format_time(nil), do: "—"
+  defp format_time(%DateTime{} = dt), do: Calendar.strftime(dt, "%H:%M:%S")
+  defp format_time(_), do: "—"
 
   defp format_score(nil), do: "—"
   defp format_score(%Decimal{} = d), do: Decimal.to_string(Decimal.round(d, 3), :normal)
