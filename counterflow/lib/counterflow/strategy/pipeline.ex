@@ -20,7 +20,7 @@ defmodule Counterflow.Strategy.Pipeline do
   alias Counterflow.{Repo, Watchlist}
   alias Counterflow.Market.{Candle, OpenInterest, FundingRate, LongShortRatio, Liquidation}
   alias Counterflow.Strategy.Counterflow, as: CounterflowStrategy
-  alias Counterflow.Strategy.{Cooldown, Dispatcher, Input}
+  alias Counterflow.Strategy.{Config, Cooldown, Dispatcher, Input}
   alias Counterflow.Indicators.{BucketedForce, EMA, OIDelta, FundingZ, LiquidationPulse, LSRSignal}
   alias Phoenix.PubSub
 
@@ -100,28 +100,41 @@ defmodule Counterflow.Strategy.Pipeline do
     %{state | subscribed: desired}
   end
 
-  defp evaluate_and_dispatch(%Candle{symbol: sym, interval: int} = candle, strategy_opts) do
+  defp evaluate_and_dispatch(%Candle{symbol: sym, interval: int} = candle, base_opts) do
+    cfg = Config.for(sym, int)
+    merged_opts = Keyword.merge(base_opts, Config.to_strategy_opts(cfg))
     input = build_input(sym, int, candle)
 
-    case CounterflowStrategy.evaluate(input, strategy_opts) do
+    with :proceed <- Config.precheck(cfg, candle, input.tf),
+         {:signal, sig} <- CounterflowStrategy.evaluate(input, merged_opts),
+         true <- side_enabled?(cfg, sig.side),
+         :ok <- Cooldown.maybe_emit(sig.symbol, sig.side, sig.interval) do
+      Dispatcher.dispatch(sig)
+      :telemetry.execute([:counterflow, :strategy, :signal, :emitted], %{count: 1}, %{symbol: sig.symbol, side: sig.side})
+    else
       :no_signal ->
         :ok
 
-      {:signal, sig} ->
-        case Cooldown.maybe_emit(sig.symbol, sig.side, sig.interval) do
-          :ok ->
-            Dispatcher.dispatch(sig)
-            :telemetry.execute([:counterflow, :strategy, :signal, :emitted], %{count: 1}, %{symbol: sig.symbol, side: sig.side})
+      {:skip, reason} ->
+        :telemetry.execute([:counterflow, :strategy, :signal, :skipped], %{count: 1}, %{symbol: sym, reason: reason})
 
-          :cooldown ->
-            :telemetry.execute([:counterflow, :strategy, :signal, :cooldown], %{count: 1}, %{symbol: sig.symbol, side: sig.side})
-        end
+      false ->
+        :telemetry.execute([:counterflow, :strategy, :signal, :side_disabled], %{count: 1}, %{symbol: sym})
+
+      :cooldown ->
+        :telemetry.execute([:counterflow, :strategy, :signal, :cooldown], %{count: 1}, %{symbol: sym})
     end
   rescue
     err ->
       Logger.warning("strategy pipeline error for #{sym}/#{int}: #{Exception.message(err)}")
       :telemetry.execute([:counterflow, :strategy, :error], %{count: 1}, %{symbol: sym, kind: err.__struct__})
   end
+
+  defp side_enabled?(%{sides_enabled: m}, side) when is_map(m) do
+    Map.get(m, to_string(side), true) || Map.get(m, side, true)
+  end
+
+  defp side_enabled?(_, _), do: true
 
   defp build_input(symbol, interval, %Candle{time: candle_time} = candle) do
     history = load_history(symbol, interval, candle_time)

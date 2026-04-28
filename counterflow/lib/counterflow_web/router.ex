@@ -21,6 +21,8 @@ defmodule CounterflowWeb.Router do
     live "/watchlist", WatchlistLive
     live "/signals", SignalsLive
     live "/symbol/:symbol", SymbolLive
+    live "/settings", SettingsLive
+    live "/settings/:symbol", SettingsLive
   end
 
   # Other scopes may use custom stacks.
