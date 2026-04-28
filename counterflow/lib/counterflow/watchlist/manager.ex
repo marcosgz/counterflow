@@ -21,8 +21,8 @@ defmodule Counterflow.Watchlist.Manager do
 
   def start_link(opts), do: GenServer.start_link(__MODULE__, opts, name: __MODULE__)
   def symbols, do: GenServer.call(__MODULE__, :symbols)
-  def add(symbol), do: GenServer.cast(__MODULE__, {:add, symbol})
-  def drop(symbol), do: GenServer.cast(__MODULE__, {:drop, symbol})
+  def add(symbol), do: GenServer.call(__MODULE__, {:add, symbol}, 5_000)
+  def drop(symbol), do: GenServer.call(__MODULE__, {:drop, symbol}, 5_000)
 
   @impl true
   def init(opts) do
@@ -44,22 +44,22 @@ defmodule Counterflow.Watchlist.Manager do
   def handle_call(:symbols, _from, state), do: {:reply, state.symbols, state}
 
   @impl true
-  def handle_cast({:add, symbol}, state) do
+  def handle_call({:add, symbol}, _from, state) do
     if symbol in state.symbols do
-      {:noreply, state}
+      {:reply, :ok, state}
     else
       ensure_entry(symbol, "manual")
       start_symbol(symbol, state.intervals)
       refresh_pipeline()
-      {:noreply, %{state | symbols: [symbol | state.symbols]}}
+      {:reply, :ok, %{state | symbols: [symbol | state.symbols]}}
     end
   end
 
-  def handle_cast({:drop, symbol}, state) do
+  def handle_call({:drop, symbol}, _from, state) do
     stop_symbol(symbol, state.intervals)
     Repo.delete_all(from w in WatchlistEntry, where: w.symbol == ^symbol)
     refresh_pipeline()
-    {:noreply, %{state | symbols: List.delete(state.symbols, symbol)}}
+    {:reply, :ok, %{state | symbols: List.delete(state.symbols, symbol)}}
   end
 
   defp refresh_pipeline do
