@@ -4,15 +4,15 @@ defmodule Counterflow.Alerts.Telegram do
   a configured chat via the Bot API.
 
   Configuration (via env or app config):
-    * TELEGRAM_BOT_TOKEN — required (e.g. "123456789:AA-...")
-    * TELEGRAM_CHAT_ID   — required (numeric chat id, can be negative for groups)
+    * COUNTERFLOW_TELEGRAM_BOT_TOKEN — required (e.g. "123456789:AA-...")
+    * COUNTERFLOW_TELEGRAM_CHAT_ID   — required (numeric chat id, can be negative for groups)
 
   Activate by including this module in :counterflow, :alert_sinks:
 
       config :counterflow, :alert_sinks, [Counterflow.Alerts.Telegram]
 
-  Or set TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID and rely on the
-  dispatcher's runtime sink list.
+  Or set COUNTERFLOW_TELEGRAM_BOT_TOKEN and COUNTERFLOW_TELEGRAM_CHAT_ID
+  and rely on the dispatcher's runtime sink list.
   """
 
   require Logger
@@ -49,8 +49,8 @@ defmodule Counterflow.Alerts.Telegram do
   @doc false
   def credentials do
     cfg = Application.get_env(:counterflow, __MODULE__, [])
-    token = cfg[:bot_token] || System.get_env("TELEGRAM_BOT_TOKEN")
-    chat_id = cfg[:chat_id] || System.get_env("TELEGRAM_CHAT_ID")
+    token = cfg[:bot_token] || System.get_env("COUNTERFLOW_TELEGRAM_BOT_TOKEN")
+    chat_id = cfg[:chat_id] || System.get_env("COUNTERFLOW_TELEGRAM_CHAT_ID")
 
     cond do
       is_nil(token) or token == "" -> {:error, :missing_token}

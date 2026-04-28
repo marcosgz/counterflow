@@ -71,7 +71,7 @@ defmodule Counterflow.Alerts.TelegramTest do
 
   test "send/1 returns :missing_token when not configured" do
     Application.delete_env(:counterflow, Counterflow.Alerts.Telegram)
-    System.delete_env("TELEGRAM_BOT_TOKEN")
+    System.delete_env("COUNTERFLOW_TELEGRAM_BOT_TOKEN")
 
     sig = %Signal{
       id: "sig-y",

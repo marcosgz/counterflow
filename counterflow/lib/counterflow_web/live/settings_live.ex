@@ -323,8 +323,8 @@ defmodule CounterflowWeb.SettingsLive do
           </div>
           <div class="cf-panel-body mono" style="font-size: 11px; color: var(--ink-2); line-height: 1.6;">
             <p :if={!@telegram_configured?} style="color: var(--ink-3);">
-              Set <span class="cf-pill muted">TELEGRAM_BOT_TOKEN</span> and
-              <span class="cf-pill muted">TELEGRAM_CHAT_ID</span> in the environment, then restart.
+              Set <span class="cf-pill muted">COUNTERFLOW_TELEGRAM_BOT_TOKEN</span> and
+              <span class="cf-pill muted">COUNTERFLOW_TELEGRAM_CHAT_ID</span> in the environment, then restart.
               Get a token from <a href="https://t.me/BotFather" target="_blank" style="color: var(--ink); text-decoration: underline;">@BotFather</a>;
               get your chat id by messaging your bot then visiting
               <span class="mono">api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</span>.
