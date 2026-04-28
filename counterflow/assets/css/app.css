@@ -489,24 +489,34 @@ html, body {
 .cf-heat[data-trend="up"]   { --bar-bg: var(--long); }
 .cf-heat[data-trend="down"] { --bar-bg: var(--short); }
 
-/* Form rows */
+/* Form rows: label column on the left, control on the right; capped width
+ * so the form doesn't sprawl edge-to-edge on full-width pages. */
 .cf-form-row {
   display: grid;
-  grid-template-columns: 200px 1fr;
+  grid-template-columns: 200px minmax(220px, 360px);
   gap: 16px;
   align-items: center;
-  padding: 12px 0;
+  padding: 12px 16px;
   border-bottom: 1px solid var(--line);
 }
+.cf-form-row:last-child { border-bottom: none; }
 .cf-form-row .label {
   font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ink-3);
 }
+/* Inputs inside form-rows fill their column unless a width utility overrides. */
+.cf-form-row > .cf-input,
+.cf-form-row > .cf-select,
+.cf-form-row > input.cf-input,
+.cf-form-row > select.cf-select {
+  width: 100%;
+  max-width: 360px;
+}
 
 @media (max-width: 768px) {
-  .cf-form-row { grid-template-columns: 1fr; gap: 6px; }
+  .cf-form-row { grid-template-columns: 1fr; gap: 6px; padding: 12px; }
 }
 
 /* Indicator panel header (compact) */

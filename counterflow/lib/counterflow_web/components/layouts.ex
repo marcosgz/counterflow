@@ -35,6 +35,7 @@ defmodule CounterflowWeb.Layouts do
         <.rail_link current={@current_path} href="/watchlist" icon="hero-rectangle-stack-mini" label="Watchlist" />
         <.rail_link current={@current_path} href="/signals" icon="hero-bolt-mini" label="Signals" />
         <.rail_link current={@current_path} href="/paper" icon="hero-banknotes-mini" label="Paper" />
+        <.rail_link current={@current_path} href="/backtest" icon="hero-clock-mini" label="Backtest" />
         <.rail_link current={@current_path} href="/debug" icon="hero-bug-ant-mini" label="Strategy debug" />
         <div class="grow"></div>
         <.rail_link current={@current_path} href="/settings" icon="hero-cog-6-tooth-mini" label="Settings" />

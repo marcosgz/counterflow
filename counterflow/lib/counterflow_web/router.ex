@@ -25,6 +25,7 @@ defmodule CounterflowWeb.Router do
     live "/settings/:symbol", SettingsLive
     live "/paper", PaperLive
     live "/debug", DebugLive
+    live "/backtest", BacktestLive
   end
 
   # Other scopes may use custom stacks.

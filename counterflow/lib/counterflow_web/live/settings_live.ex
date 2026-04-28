@@ -76,7 +76,7 @@ defmodule CounterflowWeb.SettingsLive do
   def render(%{symbol: _} = assigns) do
     ~H"""
     <Layouts.shell flash={@flash} current_path={@current_path} symbol={@symbol}>
-      <div class="p-6 w-full space-y-4">
+      <div class="p-6 max-w-3xl space-y-4">
         <header class="flex items-center justify-between">
           <h1 class="cf-section-title" style="font-size: 14px; letter-spacing: 0.18em; color: var(--ink);">
             STRATEGY · <span class="mono" style="color: var(--long);">{@symbol}</span>
@@ -95,7 +95,7 @@ defmodule CounterflowWeb.SettingsLive do
             <div class="cf-panel-head">
               <span class="title"><span class="marker"></span>Strategy Engine</span>
             </div>
-            <div class="cf-panel-body space-y-0">
+            <div style="padding: 0;">
               <div class="cf-form-row">
                 <div class="label">Enabled</div>
                 <label class="flex items-center gap-2 mono" style="font-size: 11px; color: var(--ink-2);">
@@ -150,17 +150,23 @@ defmodule CounterflowWeb.SettingsLive do
             <div class="cf-panel-head">
               <span class="title"><span class="marker warn"></span>Sides</span>
             </div>
-            <div class="cf-panel-body flex gap-6 mono" style="font-size: 11px; color: var(--ink-2);">
-              <label class="flex items-center gap-2">
-                <input type="checkbox" name="cfg[enable_long]" value="true"
-                       checked={Map.get(@cfg.sides_enabled, "long", true)} />
-                <span class="cf-pill" style="background: var(--long-bg); color: var(--long);">LONG</span>
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" name="cfg[enable_short]" value="true"
-                       checked={Map.get(@cfg.sides_enabled, "short", true)} />
-                <span class="cf-pill" style="background: var(--short-bg); color: var(--short);">SHORT</span>
-              </label>
+            <div style="padding: 0;">
+              <div class="cf-form-row">
+                <div class="label">Long</div>
+                <label class="flex items-center gap-2 mono" style="font-size: 11px; color: var(--ink-2);">
+                  <input type="checkbox" name="cfg[enable_long]" value="true"
+                         checked={Map.get(@cfg.sides_enabled, "long", true)} />
+                  <span class="cf-pill" style="background: var(--long-bg); color: var(--long);">LONG signals enabled</span>
+                </label>
+              </div>
+              <div class="cf-form-row">
+                <div class="label">Short</div>
+                <label class="flex items-center gap-2 mono" style="font-size: 11px; color: var(--ink-2);">
+                  <input type="checkbox" name="cfg[enable_short]" value="true"
+                         checked={Map.get(@cfg.sides_enabled, "short", true)} />
+                  <span class="cf-pill" style="background: var(--short-bg); color: var(--short);">SHORT signals enabled</span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -169,19 +175,28 @@ defmodule CounterflowWeb.SettingsLive do
               <span class="title"><span class="marker short"></span>Outputs</span>
               <span class="cf-pill muted">layered</span>
             </div>
-            <div class="cf-panel-body space-y-2 mono" style="font-size: 11px; color: var(--ink-2);">
-              <label class="flex items-center gap-2">
-                <input type="checkbox" name="cfg[enable_alerts]" value="true" checked={@cfg.enable_alerts} />
-                Alerts (PubSub + sinks)
-              </label>
-              <label class="flex items-center gap-2">
-                <input type="checkbox" name="cfg[enable_paper]" value="true" checked={@cfg.enable_paper} />
-                Auto paper-trade
-              </label>
-              <label class="flex items-center gap-2 opacity-60">
-                <input type="checkbox" name="cfg[enable_live]" value="true" checked={@cfg.enable_live} disabled />
-                Live trading <span class="cf-pill muted">gated · phase 8b</span>
-              </label>
+            <div style="padding: 0;">
+              <div class="cf-form-row">
+                <div class="label">Alerts</div>
+                <label class="flex items-center gap-2 mono" style="font-size: 11px; color: var(--ink-2);">
+                  <input type="checkbox" name="cfg[enable_alerts]" value="true" checked={@cfg.enable_alerts} />
+                  PubSub + sinks
+                </label>
+              </div>
+              <div class="cf-form-row">
+                <div class="label">Paper trade</div>
+                <label class="flex items-center gap-2 mono" style="font-size: 11px; color: var(--ink-2);">
+                  <input type="checkbox" name="cfg[enable_paper]" value="true" checked={@cfg.enable_paper} />
+                  Auto-place on every emitted signal
+                </label>
+              </div>
+              <div class="cf-form-row" style="opacity: 0.6;">
+                <div class="label">Live trade</div>
+                <label class="flex items-center gap-2 mono" style="font-size: 11px; color: var(--ink-2);">
+                  <input type="checkbox" name="cfg[enable_live]" value="true" checked={@cfg.enable_live} disabled />
+                  <span class="cf-pill muted">gated · phase 8b</span>
+                </label>
+              </div>
             </div>
           </div>
 
