@@ -608,3 +608,63 @@ html, body {
   background: var(--line);
 }
 .cf-level-bar > i { display: block; height: 100%; }
+
+/* Flash toasts — bottom-right stack, sized to read properly */
+.cf-flash-stack {
+  position: fixed;
+  bottom: 44px;
+  right: 16px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  pointer-events: none;
+  width: min(420px, calc(100vw - 32px));
+}
+.cf-flash-toast {
+  pointer-events: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-left-width: 4px;
+  border-radius: 4px;
+  box-shadow: var(--shadow);
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 12px;
+  color: var(--ink);
+  animation: cf-toast-in 200ms ease-out;
+}
+@keyframes cf-toast-in {
+  from { transform: translateX(8px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+.cf-flash-marker {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ink-3);
+  flex-shrink: 0;
+}
+.cf-flash-info { border-left-color: var(--long); }
+.cf-flash-info .cf-flash-marker { background: var(--long); box-shadow: 0 0 6px var(--long); }
+.cf-flash-error { border-left-color: var(--short); }
+.cf-flash-error .cf-flash-marker { background: var(--short); box-shadow: 0 0 6px var(--short); }
+.cf-flash-msg {
+  flex: 1;
+  word-break: break-word;
+  line-height: 1.4;
+}
+.cf-flash-close {
+  width: 22px; height: 22px;
+  display: grid; place-items: center;
+  background: transparent;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  color: var(--ink-3);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+.cf-flash-close:hover { color: var(--ink); border-color: var(--ink-3); }

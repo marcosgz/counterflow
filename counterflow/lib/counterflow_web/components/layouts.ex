@@ -116,12 +116,32 @@ defmodule CounterflowWeb.Layouts do
 
   def flash_group(assigns) do
     ~H"""
-    <div id={@id} aria-live="polite" class="fixed bottom-10 right-4 z-50 space-y-2">
-      <.flash kind={:info} flash={@flash} />
-      <.flash kind={:error} flash={@flash} />
+    <div id={@id} aria-live="polite" class="cf-flash-stack">
+      <.cf_flash :if={Phoenix.Flash.get(@flash, :info)} kind={:info} message={Phoenix.Flash.get(@flash, :info)} />
+      <.cf_flash :if={Phoenix.Flash.get(@flash, :error)} kind={:error} message={Phoenix.Flash.get(@flash, :error)} />
     </div>
     """
   end
+
+  attr :kind, :atom, required: true
+  attr :message, :string, required: true
+
+  defp cf_flash(assigns) do
+    ~H"""
+    <div class={"cf-flash-toast " <> flash_class(@kind)} role="alert" phx-click={JS.hide()}>
+      <span class="cf-flash-marker"></span>
+      <span class="cf-flash-msg">{@message}</span>
+      <button type="button" class="cf-flash-close" aria-label="Close" phx-click={JS.hide(to: "##{flash_dom_id(@kind)}")}>×</button>
+    </div>
+    """
+  end
+
+  defp flash_class(:info), do: "cf-flash-info"
+  defp flash_class(:error), do: "cf-flash-error"
+  defp flash_class(_), do: ""
+
+  defp flash_dom_id(:info), do: "flash-info"
+  defp flash_dom_id(:error), do: "flash-error"
 
   @doc "Three-way theme toggle: auto / light / dark."
   def theme_toggle(assigns) do

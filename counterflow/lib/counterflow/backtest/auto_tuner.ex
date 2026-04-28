@@ -144,7 +144,7 @@ defmodule Counterflow.Backtest.AutoTuner do
       interval: interval,
       grid: evaluated,
       winner: winner,
-      previous_threshold: maybe_decimal(cfg.threshold)
+      previous_threshold: cfg.threshold && Decimal.to_string(cfg.threshold |> to_decimal(), :normal)
     }
 
     apply_winner(symbol, cfg, winner, summary)
@@ -158,7 +158,7 @@ defmodule Counterflow.Backtest.AutoTuner do
         ran_at: summary.ran_at,
         previous_threshold: maybe_decimal(cfg.threshold),
         selected_threshold: winner && Decimal.from_float(winner.threshold),
-        evaluated: %{grid: evaluated, winner: winner},
+        evaluated: jsonable(%{grid: evaluated, winner: winner}),
         inserted_at: now,
         updated_at: now
       }
@@ -190,11 +190,30 @@ defmodule Counterflow.Backtest.AutoTuner do
     Config.upsert(symbol, %{
       threshold: Decimal.from_float(winner.threshold),
       last_auto_tune_at: summary.ran_at,
-      last_auto_tune_summary: summary
+      last_auto_tune_summary: jsonable(summary)
     })
   end
 
   defp maybe_decimal(nil), do: nil
   defp maybe_decimal(%Decimal{} = d), do: d
   defp maybe_decimal(n) when is_number(n), do: Decimal.from_float(n / 1)
+
+  defp to_decimal(%Decimal{} = d), do: d
+  defp to_decimal(n) when is_number(n), do: Decimal.from_float(n / 1)
+  defp to_decimal(_), do: Decimal.new(0)
+
+  # Recursively convert Decimal/Atom keys/Atoms to JSON-safe values so the
+  # entire structure can be serialized into the JSONB columns.
+  defp jsonable(%Decimal{} = d), do: Decimal.to_string(d, :normal)
+  defp jsonable(%DateTime{} = dt), do: DateTime.to_iso8601(dt)
+  defp jsonable(%Date{} = d), do: Date.to_iso8601(d)
+  defp jsonable(value) when is_atom(value) and value not in [nil, true, false], do: Atom.to_string(value)
+  defp jsonable(list) when is_list(list), do: Enum.map(list, &jsonable/1)
+  defp jsonable(map) when is_map(map) and not is_struct(map) do
+    Map.new(map, fn {k, v} ->
+      k_out = if is_atom(k) and k not in [nil, true, false], do: Atom.to_string(k), else: k
+      {k_out, jsonable(v)}
+    end)
+  end
+  defp jsonable(other), do: other
 end
