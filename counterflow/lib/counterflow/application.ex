@@ -16,6 +16,7 @@ defmodule Counterflow.Application do
       Counterflow.Risk.KillSwitch,
       Counterflow.Strategy.Cooldown,
       Counterflow.Ingest.Supervisor,
+      {Counterflow.Strategy.Pipeline, enabled?: Application.get_env(:counterflow, :strategy_pipeline_enabled?, true)},
       CounterflowWeb.Endpoint
     ]
 

@@ -50,6 +50,7 @@ defmodule Counterflow.Watchlist.Manager do
     else
       ensure_entry(symbol, "manual")
       start_symbol(symbol, state.intervals)
+      refresh_pipeline()
       {:noreply, %{state | symbols: [symbol | state.symbols]}}
     end
   end
@@ -57,7 +58,12 @@ defmodule Counterflow.Watchlist.Manager do
   def handle_cast({:drop, symbol}, state) do
     stop_symbol(symbol, state.intervals)
     Repo.delete_all(from w in WatchlistEntry, where: w.symbol == ^symbol)
+    refresh_pipeline()
     {:noreply, %{state | symbols: List.delete(state.symbols, symbol)}}
+  end
+
+  defp refresh_pipeline do
+    if pid = Process.whereis(Counterflow.Strategy.Pipeline), do: send(pid, :subscribe)
   end
 
   # ── helpers ─────────────────────────────────────────────────

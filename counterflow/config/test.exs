@@ -24,7 +24,8 @@ config :counterflow, CounterflowWeb.Endpoint,
 config :counterflow,
   pollers_enabled?: false,
   liquidations_enabled?: false,
-  watchlist_seed: []
+  watchlist_seed: [],
+  strategy_pipeline_enabled?: false
 
 # Print only warnings and errors during test
 config :logger, level: :warning
