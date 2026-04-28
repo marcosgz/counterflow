@@ -12,6 +12,7 @@ defmodule Counterflow.Application do
       Counterflow.Repo,
       {DNSCluster, query: Application.get_env(:counterflow, :dns_cluster_query) || :ignore},
       {Phoenix.PubSub, name: Counterflow.PubSub},
+      Counterflow.Strategy.Cooldown,
       Counterflow.Ingest.Supervisor,
       CounterflowWeb.Endpoint
     ]
