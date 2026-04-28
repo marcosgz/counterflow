@@ -5,7 +5,7 @@ defmodule Counterflow.Strategy.CounterflowStrategyTest do
   alias Counterflow.Strategy.Input
   alias Counterflow.Market.Candle
 
-  defp candle(close, open, high \\ nil, low \\ nil) do
+  defp candle(close, open, high, low) do
     %Candle{
       symbol: "BTCUSDT",
       interval: "5m",

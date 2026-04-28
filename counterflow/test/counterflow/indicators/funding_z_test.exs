@@ -9,7 +9,7 @@ defmodule Counterflow.Indicators.FundingZTest do
 
   test "z is 0 when all rates are equal" do
     series = for _ <- 1..30, do: rate(0.0001)
-    assert %{z: 0.0} = FundingZ.calculate(series)
+    assert FundingZ.calculate(series).z == +0.0
   end
 
   test "z is positive when latest is above mean" do
@@ -19,6 +19,8 @@ defmodule Counterflow.Indicators.FundingZTest do
   end
 
   test "empty input returns zeros" do
-    assert %{z: 0.0, mean: 0.0} = FundingZ.calculate([])
+    result = FundingZ.calculate([])
+    assert result.z == +0.0
+    assert result.mean == +0.0
   end
 end

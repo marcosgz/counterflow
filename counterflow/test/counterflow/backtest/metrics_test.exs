@@ -16,7 +16,10 @@ defmodule Counterflow.Backtest.MetricsTest do
        }}
 
   test "summarize on empty input" do
-    assert %{total: 0, win_rate: 0.0, profit_factor: 0.0} = Metrics.summarize([])
+    s = Metrics.summarize([])
+    assert s.total == 0
+    assert s.win_rate == +0.0
+    assert s.profit_factor == +0.0
   end
 
   test "summarize with mixed wins and losses" do
