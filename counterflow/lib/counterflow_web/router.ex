@@ -17,7 +17,10 @@ defmodule CounterflowWeb.Router do
   scope "/", CounterflowWeb do
     pipe_through :browser
 
-    live "/", SmokeLive
+    live "/", OverviewLive
+    live "/watchlist", WatchlistLive
+    live "/signals", SignalsLive
+    live "/symbol/:symbol", SymbolLive
   end
 
   # Other scopes may use custom stacks.

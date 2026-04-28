@@ -66,7 +66,8 @@ defmodule Counterflow.Binance.Rest do
            url: url,
            params: Keyword.get(opts, :params, []),
            receive_timeout: 15_000,
-           retry: false
+           retry: false,
+           finch: Counterflow.Finch
          ) do
       {:ok, %{status: 200, body: body}} ->
         {:ok, body}

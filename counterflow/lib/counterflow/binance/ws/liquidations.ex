@@ -16,7 +16,7 @@ defmodule Counterflow.Binance.WS.Liquidations do
 
   def start_link(_opts \\ []) do
     state = %{backoff_ms: 1_000}
-    WebSockex.start_link("#{base()}/ws/!forceOrder@arr", __MODULE__, state, name: __MODULE__)
+    WebSockex.start_link("#{base()}/ws/!forceOrder@arr", __MODULE__, state, name: __MODULE__, async: true, handle_initial_conn_failure: true)
   end
 
   def child_spec(_opts) do

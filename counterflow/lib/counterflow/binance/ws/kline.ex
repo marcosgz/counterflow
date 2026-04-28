@@ -31,7 +31,7 @@ defmodule Counterflow.Binance.WS.Kline do
       backoff_ms: 1_000
     }
 
-    WebSockex.start_link(url, __MODULE__, state, name: name)
+    WebSockex.start_link(url, __MODULE__, state, name: name, async: true, handle_initial_conn_failure: true)
   end
 
   def child_spec(opts) do
