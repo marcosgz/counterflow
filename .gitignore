@@ -1,0 +1,4 @@
+# Project root ignores
+bot/encryptos-trading-desktop-demo/node_modules/
+*.log
+.env
