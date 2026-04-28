@@ -21,6 +21,11 @@ config :counterflow, CounterflowWeb.Endpoint,
   secret_key_base: "NNbd+EnhIVUgG7qXQHhTxMDrFvmb/2ajIVtzSfSyf3oC5MF2l5vbfRj+bmfTdAIL",
   server: false
 
+config :counterflow,
+  pollers_enabled?: false,
+  liquidations_enabled?: false,
+  watchlist_seed: []
+
 # Print only warnings and errors during test
 config :logger, level: :warning
 
