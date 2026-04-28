@@ -313,7 +313,7 @@ defmodule CounterflowWeb.SettingsLive do
         </div>
 
         <%!-- ── Telegram sink ── --%>
-        <div class="cf-panel cf-panel-flush" style="max-width: 720px;">
+        <div class="cf-panel" style="max-width: 720px;">
           <div class="cf-panel-head">
             <span class="title"><span class="marker"></span>Telegram alerts</span>
             <span class={"cf-pill " <> if(@telegram_configured?, do: "", else: "muted")}
