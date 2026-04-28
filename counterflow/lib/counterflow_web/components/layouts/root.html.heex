@@ -21,10 +21,8 @@
     </script>
     <script>
       // Three-way theme: "auto" (follows OS), "dark", "light".
-      // Stored in localStorage.cf_theme; absence = auto. Auto removes the
-      // data-theme attribute so prefers-color-scheme handles the swap.
-      // Exposes window.cfSetTheme so onclick handlers on the toggle buttons
-      // call this function directly — no LiveView round-trip needed.
+      // Uses a single delegated click listener on document so it survives any
+      // LiveView re-render without re-binding. Storage: localStorage.cf_theme.
       (() => {
         const KEY = "cf_theme";
         const apply = (mode) => {
@@ -38,19 +36,30 @@
           });
         };
 
-        window.cfSetTheme = (mode) => {
+        const setTheme = (mode) => {
           if (mode === "auto") localStorage.removeItem(KEY);
           else localStorage.setItem(KEY, mode);
           apply(mode);
         };
 
+        window.cfSetTheme = setTheme;
+
+        // Initial paint, before LiveView connects.
         apply(localStorage.getItem(KEY) || "auto");
+
+        // Delegated click — works for buttons rendered by any LiveView swap.
+        document.addEventListener("click", (e) => {
+          const btn = e.target.closest("[data-cf-theme]");
+          if (!btn) return;
+          e.preventDefault();
+          setTheme(btn.dataset.cfTheme);
+        });
 
         window.addEventListener("storage", (e) => {
           if (e.key === KEY) apply(e.newValue || "auto");
         });
 
-        // LiveView swaps DOM on page navigation; reapply active-class state.
+        // After every LiveView page swap, re-sync active button state.
         window.addEventListener("phx:page-loading-stop", () => {
           apply(localStorage.getItem(KEY) || "auto");
         });

@@ -124,13 +124,13 @@ defmodule CounterflowWeb.Layouts do
   def theme_toggle(assigns) do
     ~H"""
     <div class="cf-theme-toggle" role="group" aria-label="Theme">
-      <button type="button" title="Auto" data-cf-theme="auto" onclick="window.cfSetTheme('auto')">
+      <button type="button" title="Auto" data-cf-theme="auto">
         <.icon name="hero-computer-desktop-micro" class="size-4" />
       </button>
-      <button type="button" title="Light" data-cf-theme="light" onclick="window.cfSetTheme('light')">
+      <button type="button" title="Light" data-cf-theme="light">
         <.icon name="hero-sun-micro" class="size-4" />
       </button>
-      <button type="button" title="Dark" data-cf-theme="dark" onclick="window.cfSetTheme('dark')">
+      <button type="button" title="Dark" data-cf-theme="dark">
         <.icon name="hero-moon-micro" class="size-4" />
       </button>
     </div>
