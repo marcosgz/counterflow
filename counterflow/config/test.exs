@@ -27,6 +27,7 @@ config :counterflow,
   watchlist_seed: [],
   strategy_pipeline_enabled?: false,
   paper_bridge_enabled?: false,
+  paper_matcher_enabled?: false,
   outcome_evaluator_enabled?: false,
   auto_tuner_enabled?: false
 

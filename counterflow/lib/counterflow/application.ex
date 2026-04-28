@@ -21,6 +21,7 @@ defmodule Counterflow.Application do
        enabled?: Application.get_env(:counterflow, :strategy_pipeline_enabled?, true),
        intervals: Application.get_env(:counterflow, :strategy_intervals, ["1m", "5m"])},
       {Counterflow.Bridge.SignalToPaper, enabled?: Application.get_env(:counterflow, :paper_bridge_enabled?, true)},
+      {Counterflow.Broker.Paper.Matcher, enabled?: Application.get_env(:counterflow, :paper_matcher_enabled?, true)},
       {Counterflow.Strategy.OutcomeEvaluator, enabled?: Application.get_env(:counterflow, :outcome_evaluator_enabled?, true)},
       {Counterflow.Backtest.AutoTuner, enabled?: Application.get_env(:counterflow, :auto_tuner_enabled?, true)},
       CounterflowWeb.Endpoint

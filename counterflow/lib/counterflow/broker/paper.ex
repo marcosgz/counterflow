@@ -125,11 +125,15 @@ defmodule Counterflow.Broker.Paper do
 
   # ── matching engine ─────────────────────────────────────────
 
-  defp fill_market(order, reference_price, account, now) do
+  @doc """
+  Public fill-at-price entry point used by the Matcher when a pending
+  LIMIT / STOP / TP order triggers against a closed candle. Unlike
+  `fill_market/4`, the caller supplies the resolved fill price; we don't
+  apply additional slippage on top.
+  """
+  def fill_pending(%PaperOrder{} = order, %Decimal{} = fill_price, %DateTime{} = now) do
+    account = Repo.get!(PaperAccount, order.account_id)
     fee_rate = account_fee(account, :taker)
-    slippage_bps = Map.get(account.config, "slippage_bps", @default_slippage_bps)
-
-    fill_price = apply_slippage(Decimal.new("#{reference_price}"), order.side, slippage_bps)
     notional = Decimal.mult(fill_price, order.qty)
     fee = Decimal.mult(notional, Decimal.from_float(fee_rate))
 
@@ -158,6 +162,12 @@ defmodule Counterflow.Broker.Paper do
       filled_avg: fill_price
     })
     |> Repo.update!()
+  end
+
+  defp fill_market(order, reference_price, account, now) do
+    slippage_bps = Map.get(account.config, "slippage_bps", @default_slippage_bps)
+    fill_price = apply_slippage(Decimal.new("#{reference_price}"), order.side, slippage_bps)
+    fill_pending(order, fill_price, now)
   end
 
   defp update_position_and_pnl(order, fill_price, _fee, account, now) do

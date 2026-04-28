@@ -98,6 +98,10 @@ defmodule Counterflow.Ingest.SymbolWorker do
 
     PubSub.broadcast(Counterflow.PubSub, topic(s, i), {:candle, broadcast_kind, candle})
 
+    if broadcast_kind == :closed do
+      PubSub.broadcast(Counterflow.PubSub, "candles:closed:firehose", {:closed_candle, candle})
+    end
+
     :telemetry.execute([:counterflow, :candle, broadcast_kind], %{count: 1}, %{
       symbol: s,
       interval: i

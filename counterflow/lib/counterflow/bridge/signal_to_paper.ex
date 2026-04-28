@@ -58,29 +58,7 @@ defmodule Counterflow.Bridge.SignalToPaper do
   defp place_from_signal(%Signal{} = sig, cfg, account_id) do
     case size_position(sig, cfg, account_id) do
       {:ok, qty} when qty != nil ->
-        order_side = if sig.side == "long", do: "BUY", else: "SELL"
-
-        case Paper.place_order(account_id, %{
-               symbol: sig.symbol,
-               side: order_side,
-               type: "MARKET",
-               qty: qty,
-               reference_price: sig.price,
-               signal_id: sig.id,
-               intent: "entry",
-               client_id: "auto-#{sig.id}"
-             }) do
-          {:ok, ack} ->
-            Logger.info(
-              "paper trade placed for #{sig.symbol}/#{sig.side} score=#{sig.score} qty=#{qty} -> #{ack.status}"
-            )
-
-            :telemetry.execute(
-              [:counterflow, :bridge, :paper, :placed],
-              %{count: 1},
-              %{symbol: sig.symbol, side: sig.side}
-            )
-        end
+        place_bracket(sig, qty, account_id)
 
       {:skip, reason} ->
         :telemetry.execute(
@@ -92,6 +70,78 @@ defmodule Counterflow.Bridge.SignalToPaper do
   rescue
     err ->
       Logger.warning("SignalToPaper crashed for #{sig.symbol}: #{Exception.message(err)}")
+  end
+
+  defp place_bracket(%Signal{} = sig, qty, account_id) do
+    entry_side = if sig.side == "long", do: "BUY", else: "SELL"
+    close_side = if sig.side == "long", do: "SELL", else: "BUY"
+    half = Decimal.div(qty, Decimal.new(2)) |> Decimal.round(8, :down)
+
+    {:ok, _entry} =
+      Paper.place_order(account_id, %{
+        symbol: sig.symbol,
+        side: entry_side,
+        type: "MARKET",
+        qty: qty,
+        reference_price: sig.price,
+        signal_id: sig.id,
+        intent: "entry",
+        client_id: "auto-#{sig.id}-entry"
+      })
+
+    if sig.sl do
+      Paper.place_order(account_id, %{
+        symbol: sig.symbol,
+        side: close_side,
+        type: "STOP_MARKET",
+        qty: qty,
+        stop_price: sig.sl,
+        reduce_only: true,
+        signal_id: sig.id,
+        intent: "sl",
+        client_id: "auto-#{sig.id}-sl"
+      })
+    end
+
+    if sig.tp1 do
+      Paper.place_order(account_id, %{
+        symbol: sig.symbol,
+        side: close_side,
+        type: "TAKE_PROFIT_MARKET",
+        qty: half,
+        stop_price: sig.tp1,
+        reduce_only: true,
+        signal_id: sig.id,
+        intent: "tp1",
+        client_id: "auto-#{sig.id}-tp1"
+      })
+    end
+
+    if sig.tp2 do
+      tp2_qty = Decimal.sub(qty, half)
+
+      Paper.place_order(account_id, %{
+        symbol: sig.symbol,
+        side: close_side,
+        type: "TAKE_PROFIT_MARKET",
+        qty: tp2_qty,
+        stop_price: sig.tp2,
+        reduce_only: true,
+        signal_id: sig.id,
+        intent: "tp2",
+        client_id: "auto-#{sig.id}-tp2"
+      })
+    end
+
+    Logger.info(
+      "paper bracket placed for #{sig.symbol}/#{sig.side} score=#{sig.score} qty=#{qty}"
+    )
+
+    :telemetry.execute(
+      [:counterflow, :bridge, :paper, :placed],
+      %{count: 1},
+      %{symbol: sig.symbol, side: sig.side}
+    )
   end
 
   defp size_position(%Signal{sl: nil}, _cfg, _account), do: {:skip, :no_sl}
