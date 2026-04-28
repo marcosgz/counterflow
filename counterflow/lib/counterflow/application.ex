@@ -17,7 +17,9 @@ defmodule Counterflow.Application do
       Counterflow.Strategy.Cooldown,
       Counterflow.Strategy.Diagnostics,
       Counterflow.Ingest.Supervisor,
-      {Counterflow.Strategy.Pipeline, enabled?: Application.get_env(:counterflow, :strategy_pipeline_enabled?, true)},
+      {Counterflow.Strategy.Pipeline,
+       enabled?: Application.get_env(:counterflow, :strategy_pipeline_enabled?, true),
+       intervals: Application.get_env(:counterflow, :strategy_intervals, ["1m", "5m"])},
       {Counterflow.Bridge.SignalToPaper, enabled?: Application.get_env(:counterflow, :paper_bridge_enabled?, true)},
       {Counterflow.Strategy.OutcomeEvaluator, enabled?: Application.get_env(:counterflow, :outcome_evaluator_enabled?, true)},
       CounterflowWeb.Endpoint

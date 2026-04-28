@@ -37,6 +37,15 @@ defmodule Counterflow.Strategy.Pipeline do
   @doc "Re-subscribe after the watchlist changes (called by Watchlist.Manager)."
   def refresh_subscriptions, do: GenServer.cast(__MODULE__, :refresh_subscriptions)
 
+  @doc """
+  Force-evaluate every (watchlist symbol × interval) using each pair's most
+  recent closed candle. Useful for the /debug page so diagnostics populate
+  immediately instead of waiting up to N minutes for the next close.
+  """
+  def force_evaluate_all do
+    GenServer.cast(__MODULE__, :force_evaluate_all)
+  end
+
   # ── server callbacks ────────────────────────────────────────
 
   @impl true
@@ -70,6 +79,44 @@ defmodule Counterflow.Strategy.Pipeline do
 
   @impl true
   def handle_cast(:refresh_subscriptions, state), do: {:noreply, do_subscribe(state)}
+
+  def handle_cast(:force_evaluate_all, state) do
+    Task.start(fn -> do_force_evaluate(state) end)
+    {:noreply, state}
+  end
+
+  defp do_force_evaluate(state) do
+    pairs =
+      for sym <- Counterflow.Watchlist.symbols(),
+          int <- state.intervals,
+          do: {sym, int}
+
+    Enum.each(pairs, fn {sym, int} ->
+      case latest_closed_candle(sym, int) do
+        nil ->
+          Diagnostics.record(sym, int, %{
+            reason: :neutral,
+            score: nil,
+            threshold: nil,
+            components: %{},
+            side: nil,
+            note: "no closed candles yet"
+          })
+
+        candle ->
+          evaluate_and_dispatch(candle, state.strategy_opts)
+      end
+    end)
+  end
+
+  defp latest_closed_candle(symbol, interval) do
+    Repo.one(
+      from c in Candle,
+        where: c.symbol == ^symbol and c.interval == ^interval and c.closed == true,
+        order_by: [desc: c.time],
+        limit: 1
+    )
+  end
 
   # ── work ────────────────────────────────────────────────────
 

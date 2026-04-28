@@ -27,6 +27,17 @@ defmodule CounterflowWeb.DebugLive do
   end
 
   @impl true
+  def handle_event("force_eval", _params, socket) do
+    Counterflow.Strategy.Pipeline.force_evaluate_all()
+    {:noreply, put_flash(socket, :info, "Forcing evaluation against latest closed candles…")}
+  end
+
+  def handle_event("reset", _params, socket) do
+    Counterflow.Strategy.Diagnostics.reset()
+    {:noreply, assign(socket, :rows, [])}
+  end
+
+  @impl true
   def render(assigns) do
     rows = assigns.rows
     summary = summarize(rows)
@@ -35,11 +46,19 @@ defmodule CounterflowWeb.DebugLive do
     ~H"""
     <Layouts.shell flash={@flash} current_path={@current_path}>
       <div class="p-6 w-full space-y-4">
-        <header class="flex items-center justify-between">
+        <header class="flex items-center justify-between flex-wrap gap-2">
           <h1 class="cf-section-title" style="font-size: 14px; letter-spacing: 0.18em; color: var(--ink);">
             STRATEGY DEBUG · <span class="mono" style="color: var(--ink-3);">{length(@rows)} active streams</span>
           </h1>
-          <span class="cf-pill muted">live</span>
+          <div class="flex items-center gap-2">
+            <button phx-click="force_eval" class="cf-btn primary">
+              <.icon name="hero-arrow-path-mini" class="size-4" /> Refresh now
+            </button>
+            <button phx-click="reset" class="cf-btn">
+              Clear
+            </button>
+            <span class="cf-pill muted">live</span>
+          </div>
         </header>
 
         <%!-- Summary by reason --%>
