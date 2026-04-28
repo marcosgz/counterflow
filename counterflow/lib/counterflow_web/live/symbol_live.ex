@@ -1,7 +1,11 @@
 defmodule CounterflowWeb.SymbolLive do
   @moduledoc """
-  Phase 5 deep-dive page for a single symbol. Shows recent candles + OI + LSR
-  + funding + signals in tables driven by PubSub.
+  Phase 5+ deep-dive page. Renders:
+    * an embedded TradingView widget for the price chart
+    * Chart.js panels for OI, LSR, funding, CVD-proxy via taker buy/sell, plus
+      a recent-signals table.
+  All chart datasets are computed server-side and pushed to the JS hooks via
+  push_event/3 on each PubSub update.
   """
 
   use CounterflowWeb, :live_view
@@ -21,6 +25,7 @@ defmodule CounterflowWeb.SymbolLive do
       PubSub.subscribe(Counterflow.PubSub, SymbolWorker.topic(symbol, interval))
       PubSub.subscribe(Counterflow.PubSub, "signals:#{symbol}")
       PubSub.subscribe(Counterflow.PubSub, "liquidations:#{symbol}")
+      send(self(), :hydrate_charts)
     end
 
     candles = load_candles(symbol, interval)
@@ -30,24 +35,24 @@ defmodule CounterflowWeb.SymbolLive do
       |> assign(:symbol, symbol)
       |> assign(:interval, interval)
       |> assign(:candles, candles)
-      |> assign(:oi, recent_oi(symbol))
-      |> assign(:lsr, recent_lsr(symbol))
-      |> assign(:funding, recent_funding(symbol))
       |> assign(:signals, recent_signals(symbol))
 
     {:ok, socket}
   end
 
   @impl true
-  def handle_info({:candle, kind, candle}, socket) do
+  def handle_info(:hydrate_charts, socket), do: {:noreply, push_chart_data(socket)}
+
+  def handle_info({:candle, _kind, candle}, socket) do
     candles =
       socket.assigns.candles
       |> Enum.reject(&(&1.time == candle.time and not &1.closed))
       |> Kernel.++([candle])
-      |> Enum.take(-50)
+      |> Enum.take(-100)
 
-    socket = if kind == :closed, do: socket, else: socket
-    {:noreply, assign(socket, :candles, candles)}
+    socket = assign(socket, :candles, candles)
+    socket = if candle.closed, do: push_chart_data(socket), else: socket
+    {:noreply, socket}
   end
 
   def handle_info({:signal, sig}, socket) do
@@ -56,38 +61,110 @@ defmodule CounterflowWeb.SymbolLive do
 
   def handle_info({:liquidation, _}, socket), do: {:noreply, socket}
 
+  defp push_chart_data(socket) do
+    symbol = socket.assigns.symbol
+
+    socket
+    |> push_event("chart:update:chart-oi", line_dataset(load_oi(symbol), &Decimal.to_float(&1.open_interest), "Open Interest"))
+    |> push_event("chart:update:chart-lsr", line_dataset(load_lsr(symbol), &Decimal.to_float(&1.ls_ratio), "L/S Ratio"))
+    |> push_event("chart:update:chart-funding", bar_dataset(load_funding(symbol), &Decimal.to_float(&1.funding_rate), "Funding"))
+    |> push_event("chart:update:chart-cvd", cvd_dataset(socket.assigns.candles))
+  end
+
+  defp line_dataset(rows, value_fn, label) do
+    sorted = Enum.sort_by(rows, & &1.time, DateTime)
+
+    %{
+      labels: Enum.map(sorted, &Calendar.strftime(&1.time, "%H:%M")),
+      datasets: [
+        %{
+          label: label,
+          data: Enum.map(sorted, value_fn),
+          borderColor: "rgb(34,211,238)",
+          backgroundColor: "rgba(34,211,238,0.2)",
+          borderWidth: 1,
+          tension: 0.2,
+          fill: true
+        }
+      ]
+    }
+  end
+
+  defp bar_dataset(rows, value_fn, label) do
+    sorted = Enum.sort_by(rows, & &1.time, DateTime)
+    values = Enum.map(sorted, value_fn)
+
+    %{
+      labels: Enum.map(sorted, &Calendar.strftime(&1.time, "%H:%M")),
+      datasets: [
+        %{
+          label: label,
+          data: values,
+          backgroundColor: Enum.map(values, fn v -> if v >= 0, do: "rgba(34,211,238,0.7)", else: "rgba(244,63,94,0.7)" end),
+          borderWidth: 0
+        }
+      ]
+    }
+  end
+
+  defp cvd_dataset(candles) do
+    closed = Enum.filter(candles, & &1.closed)
+    sorted = Enum.sort_by(closed, & &1.time, DateTime)
+
+    {labels, deltas} =
+      sorted
+      |> Enum.map(fn c ->
+        buy = Decimal.to_float(c.taker_buy_quote || Decimal.new(0))
+        total = Decimal.to_float(c.quote_volume || Decimal.new(0))
+        sell = total - buy
+        {Calendar.strftime(c.time, "%H:%M"), buy - sell}
+      end)
+      |> Enum.unzip()
+
+    cumulative = Enum.scan(deltas, 0.0, fn d, acc -> acc + d end)
+
+    %{
+      labels: labels,
+      datasets: [
+        %{
+          label: "CVD (cumulative taker buy − sell, quote)",
+          data: cumulative,
+          borderColor: "rgb(244,114,182)",
+          backgroundColor: "rgba(244,114,182,0.15)",
+          borderWidth: 1,
+          tension: 0.2,
+          fill: true
+        }
+      ]
+    }
+  end
+
   defp load_candles(symbol, interval) do
     case SymbolWorker.snapshot(symbol, interval) do
-      %{closed: closed, open: open} -> Enum.take(closed, -50) ++ List.wrap(open)
+      %{closed: closed, open: open} -> Enum.take(closed, -100) ++ List.wrap(open)
       _ -> []
     end
   end
 
-  defp recent_oi(symbol) do
-    Repo.all(
-      from o in OpenInterest, where: o.symbol == ^symbol, order_by: [desc: o.time], limit: 12
-    )
+  defp load_oi(symbol) do
+    Repo.all(from o in OpenInterest, where: o.symbol == ^symbol, order_by: [desc: o.time], limit: 30)
   end
 
-  defp recent_lsr(symbol) do
+  defp load_lsr(symbol) do
     Repo.all(
       from l in LongShortRatio,
         where: l.symbol == ^symbol and l.source == "global_account",
         order_by: [desc: l.time],
-        limit: 12
+        limit: 30
     )
   end
 
-  defp recent_funding(symbol) do
-    Repo.all(
-      from f in FundingRate, where: f.symbol == ^symbol, order_by: [desc: f.time], limit: 5
-    )
+  defp load_funding(symbol) do
+    Repo.all(from f in FundingRate, where: f.symbol == ^symbol, order_by: [desc: f.time], limit: 30)
   end
 
   defp recent_signals(symbol) do
-    Repo.all(
-      from s in Signal, where: s.symbol == ^symbol, order_by: [desc: s.generated_at], limit: 20
-    )
+    Repo.all(from s in Signal, where: s.symbol == ^symbol, order_by: [desc: s.generated_at], limit: 20)
   end
 
   @impl true
@@ -99,72 +176,28 @@ defmodule CounterflowWeb.SymbolLive do
         <nav class="text-sm space-x-4">
           <.link navigate={~p"/"} class="underline">Overview</.link>
           <.link navigate={~p"/watchlist"} class="underline">Watchlist</.link>
+          <.link navigate={~p"/signals"} class="underline">Signals</.link>
         </nav>
       </header>
 
       <section>
-        <h2 class="text-lg font-semibold mb-2">Candles {@interval} (last 50)</h2>
-        <div class="overflow-x-auto">
-          <table class="w-full text-xs font-mono">
-            <thead class="bg-gray-100 dark:bg-gray-800">
-              <tr>
-                <th class="text-left p-1">Time</th>
-                <th class="text-right p-1">O</th>
-                <th class="text-right p-1">H</th>
-                <th class="text-right p-1">L</th>
-                <th class="text-right p-1">C</th>
-                <th class="text-right p-1">Vol</th>
-                <th class="text-right p-1">Trades</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr
-                :for={c <- Enum.reverse(@candles)}
-                class={if c.closed, do: "", else: "bg-yellow-50 dark:bg-yellow-900/20"}
-              >
-                <td class="p-1">{Calendar.strftime(c.time, "%H:%M:%S")}</td>
-                <td class="p-1 text-right">{c.open}</td>
-                <td class="p-1 text-right">{c.high}</td>
-                <td class="p-1 text-right">{c.low}</td>
-                <td class="p-1 text-right">{c.close}</td>
-                <td class="p-1 text-right">{c.volume}</td>
-                <td class="p-1 text-right">{c.trades}</td>
-              </tr>
-            </tbody>
-          </table>
+        <h2 class="text-lg font-semibold mb-2">Price (TradingView)</h2>
+        <div
+          id={"tv-#{@symbol}"}
+          phx-hook="TradingViewWidget"
+          phx-update="ignore"
+          data-symbol={@symbol}
+          data-interval="5"
+          class="w-full h-[480px] bg-gray-50 dark:bg-gray-900"
+        >
         </div>
       </section>
 
-      <section class="grid lg:grid-cols-3 gap-6">
-        <div>
-          <h2 class="text-lg font-semibold mb-2">Open Interest</h2>
-          <table class="w-full text-xs font-mono">
-            <tr :for={o <- @oi} class="border-b">
-              <td>{Calendar.strftime(o.time, "%H:%M")}</td>
-              <td class="text-right">{o.open_interest}</td>
-            </tr>
-          </table>
-        </div>
-
-        <div>
-          <h2 class="text-lg font-semibold mb-2">Long/Short Ratio (account)</h2>
-          <table class="w-full text-xs font-mono">
-            <tr :for={l <- @lsr} class="border-b">
-              <td>{Calendar.strftime(l.time, "%H:%M")}</td>
-              <td class="text-right">{l.ls_ratio}</td>
-            </tr>
-          </table>
-        </div>
-
-        <div>
-          <h2 class="text-lg font-semibold mb-2">Funding</h2>
-          <table class="w-full text-xs font-mono">
-            <tr :for={f <- @funding} class="border-b">
-              <td>{Calendar.strftime(f.time, "%H:%M")}</td>
-              <td class="text-right">{f.funding_rate}</td>
-            </tr>
-          </table>
-        </div>
+      <section class="grid lg:grid-cols-2 gap-6">
+        <.chart_panel id="chart-oi" title="Open Interest (24h, 5m)" />
+        <.chart_panel id="chart-lsr" title="Long/Short Ratio (account, 5m)" />
+        <.chart_panel id="chart-funding" title="Funding Rate (recent ticks)" type="bar" />
+        <.chart_panel id="chart-cvd" title="CVD proxy (cumulative taker buy − sell)" />
       </section>
 
       <section>
@@ -179,6 +212,27 @@ defmodule CounterflowWeb.SymbolLive do
           <div :if={@signals == []} class="text-gray-500">No signals yet.</div>
         </div>
       </section>
+    </div>
+    """
+  end
+
+  attr :id, :string, required: true
+  attr :title, :string, required: true
+  attr :type, :string, default: "line"
+
+  defp chart_panel(assigns) do
+    ~H"""
+    <div>
+      <h3 class="text-sm font-semibold mb-1 text-gray-700 dark:text-gray-300">{@title}</h3>
+      <div class="relative h-48 bg-gray-50 dark:bg-gray-900 p-2 rounded">
+        <canvas
+          id={@id}
+          phx-hook="ChartJSPanel"
+          data-chart-type={@type}
+          data-initial-data='{"labels":[],"datasets":[]}'
+        >
+        </canvas>
+      </div>
     </div>
     """
   end
