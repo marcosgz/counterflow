@@ -20,9 +20,11 @@
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script>
-      // Three-way theme: "auto" (default, follows OS), "dark", "light".
+      // Three-way theme: "auto" (follows OS), "dark", "light".
       // Stored in localStorage.cf_theme; absence = auto. Auto removes the
       // data-theme attribute so prefers-color-scheme handles the swap.
+      // Exposes window.cfSetTheme so onclick handlers on the toggle buttons
+      // call this function directly — no LiveView round-trip needed.
       (() => {
         const KEY = "cf_theme";
         const apply = (mode) => {
@@ -31,21 +33,26 @@
           } else {
             document.documentElement.setAttribute("data-theme", mode);
           }
+          document.querySelectorAll("[data-cf-theme]").forEach((b) => {
+            b.classList.toggle("active", b.dataset.cfTheme === (mode || "auto"));
+          });
         };
-        const stored = localStorage.getItem(KEY);
-        apply(stored || "auto");
 
-        // Reapply when stored value changes in another tab
+        window.cfSetTheme = (mode) => {
+          if (mode === "auto") localStorage.removeItem(KEY);
+          else localStorage.setItem(KEY, mode);
+          apply(mode);
+        };
+
+        apply(localStorage.getItem(KEY) || "auto");
+
         window.addEventListener("storage", (e) => {
           if (e.key === KEY) apply(e.newValue || "auto");
         });
 
-        // Phoenix bridge: pages dispatch `phx:set-theme` with detail = mode
-        window.addEventListener("phx:set-theme", (e) => {
-          const mode = (e.detail && e.detail.mode) || e.target.dataset.cfTheme || "auto";
-          if (mode === "auto") localStorage.removeItem(KEY);
-          else localStorage.setItem(KEY, mode);
-          apply(mode);
+        // LiveView swaps DOM on page navigation; reapply active-class state.
+        window.addEventListener("phx:page-loading-stop", () => {
+          apply(localStorage.getItem(KEY) || "auto");
         });
       })();
     </script>
