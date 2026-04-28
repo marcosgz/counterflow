@@ -25,7 +25,9 @@ config :counterflow,
   pollers_enabled?: false,
   liquidations_enabled?: false,
   watchlist_seed: [],
-  strategy_pipeline_enabled?: false
+  strategy_pipeline_enabled?: false,
+  paper_bridge_enabled?: false,
+  outcome_evaluator_enabled?: false
 
 # Print only warnings and errors during test
 config :logger, level: :warning
