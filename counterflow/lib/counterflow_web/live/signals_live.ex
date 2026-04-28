@@ -80,7 +80,7 @@ defmodule CounterflowWeb.SignalsLive do
   def render(assigns) do
     ~H"""
     <Layouts.shell flash={@flash} current_path={@current_path}>
-      <div class="p-6 max-w-6xl mx-auto space-y-4">
+      <div class="p-6 w-full space-y-4">
         <header class="flex items-center justify-between">
           <h1 class="cf-section-title" style="font-size: 14px; letter-spacing: 0.18em; color: var(--ink);">SIGNALS</h1>
           <span class="cf-pill muted">live</span>

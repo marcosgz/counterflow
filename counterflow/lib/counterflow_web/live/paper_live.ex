@@ -73,7 +73,7 @@ defmodule CounterflowWeb.PaperLive do
 
     ~H"""
     <Layouts.shell flash={@flash} current_path={@current_path}>
-      <div class="p-6 max-w-7xl mx-auto space-y-4">
+      <div class="p-6 w-full space-y-4">
         <header class="flex items-center justify-between">
           <h1 class="cf-section-title" style="font-size: 14px; letter-spacing: 0.18em; color: var(--ink);">
             PAPER TRADING · <span class="mono" style="color: var(--ink-3);">{@account.id}</span>

@@ -96,7 +96,7 @@ defmodule CounterflowWeb.OverviewLive do
   def render(assigns) do
     ~H"""
     <Layouts.shell flash={@flash} current_path={@current_path}>
-      <div class="p-6 space-y-6 max-w-[1600px] mx-auto">
+      <div class="p-6 space-y-6 w-full">
         <section class="grid grid-cols-2 md:grid-cols-4 gap-3">
           <div class="cf-kpi long">
             <div class="cf-kpi-label">Signals · 24h</div>

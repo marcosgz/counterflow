@@ -302,7 +302,7 @@ defmodule CounterflowWeb.SymbolLive do
   def render(assigns) do
     ~H"""
     <Layouts.shell flash={@flash} current_path={@current_path} symbol={@symbol}>
-      <div class="px-3 sm:px-5 py-3 max-w-[1800px] mx-auto space-y-3">
+      <div class="px-3 sm:px-5 py-3 w-full space-y-3">
         <%!-- ── ticker strip ── --%>
         <section class="cf-panel cf-panel-flush">
           <div class="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-7 divide-x" style="border-color: var(--line);">
