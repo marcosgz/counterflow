@@ -12,7 +12,21 @@ defmodule CounterflowWeb.WatchlistLive do
      socket
      |> assign(:current_path, "/watchlist")
      |> assign(:watchlist, Watchlist.all())
-     |> assign(:new_symbol, "")}
+     |> assign(:new_symbol, "")
+     |> assign_candidates()
+     |> assign(:auto_promote_enabled?, Application.get_env(:counterflow, :auto_promote_enabled?, true))
+     |> assign(:rebalance_running?, false)}
+  end
+
+  defp assign_candidates(socket) do
+    candidates =
+      try do
+        Counterflow.Watchlist.Promotion.rank_candidates(limit: 12)
+      rescue
+        _ -> []
+      end
+
+    assign(socket, :candidates, candidates)
   end
 
   @impl true
@@ -34,7 +48,50 @@ defmodule CounterflowWeb.WatchlistLive do
 
   def handle_event("drop", %{"symbol" => s}, socket) do
     Manager.drop(s)
-    {:noreply, assign(socket, watchlist: Watchlist.all())}
+    {:noreply, socket |> assign(:watchlist, Watchlist.all()) |> assign_candidates()}
+  end
+
+  def handle_event("toggle_auto_promote", _params, socket) do
+    new_state = !socket.assigns.auto_promote_enabled?
+    Application.put_env(:counterflow, :auto_promote_enabled?, new_state)
+    {:noreply, assign(socket, :auto_promote_enabled?, new_state)}
+  end
+
+  def handle_event("rebalance_now", _params, socket) do
+    parent = self()
+
+    Task.start(fn ->
+      try do
+        Counterflow.Watchlist.Promoter.rebalance_now()
+      after
+        send(parent, :rebalance_done)
+      end
+    end)
+
+    {:noreply,
+     socket
+     |> assign(:rebalance_running?, true)
+     |> put_flash(:info, "Rebalance running…")}
+  end
+
+  def handle_event("promote", %{"symbol" => sym}, socket) do
+    Manager.add(sym)
+    Watchlist.promote(sym, "manual_from_candidates", nil)
+
+    {:noreply,
+     socket
+     |> assign(:watchlist, Watchlist.all())
+     |> assign_candidates()}
+  end
+
+  @impl true
+  def handle_info(:rebalance_done, socket) do
+    {:noreply,
+     socket
+     |> assign(:rebalance_running?, false)
+     |> assign(:watchlist, Watchlist.all())
+     |> assign_candidates()
+     |> put_flash(:info, "Rebalance complete.")}
   end
 
   @impl true
@@ -46,6 +103,60 @@ defmodule CounterflowWeb.WatchlistLive do
           <h1 class="cf-section-title" style="font-size: 14px; letter-spacing: 0.18em; color: var(--ink);">WATCHLIST</h1>
           <span class="cf-pill muted">{length(@watchlist)} symbols</span>
         </header>
+
+        <%!-- Auto-promotion control + candidates --%>
+        <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel-head">
+            <span class="title"><span class="marker warn"></span>Auto-promotion</span>
+            <span class="flex items-center gap-2">
+              <span class={"cf-pill " <> if(@auto_promote_enabled?, do: "", else: "muted")}
+                    style={if(@auto_promote_enabled?, do: "background: var(--long-bg); color: var(--long);", else: "")}>
+                {if @auto_promote_enabled?, do: "ENABLED", else: "DISABLED"}
+              </span>
+              <button phx-click="toggle_auto_promote" class="cf-btn">
+                {if @auto_promote_enabled?, do: "Disable", else: "Enable"}
+              </button>
+              <button phx-click="rebalance_now" class="cf-btn primary" disabled={@rebalance_running?}>
+                <%= if @rebalance_running?, do: "Running…", else: "Rebalance now" %>
+              </button>
+            </span>
+          </div>
+          <div class="cf-panel-body">
+            <p class="mono" style="font-size: 11px; color: var(--ink-3); line-height: 1.6;">
+              Top non-watchlist symbols ranked by 1h liquidation notional and current funding extreme.
+              Auto-rebalance runs every 5 min when enabled; pinned symbols are never demoted.
+            </p>
+          </div>
+          <table class="cf-table" :if={@candidates != []}>
+            <thead>
+              <tr>
+                <th>Candidate</th>
+                <th class="num">Score</th>
+                <th>Reason</th>
+                <th class="num">Liq 1h ($)</th>
+                <th class="num">Funding</th>
+                <th class="num">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={c <- @candidates}>
+                <td>{c.symbol}</td>
+                <td class="num">{Float.round(c.score, 3)}</td>
+                <td><span class="cf-pill muted">{c.reason}</span></td>
+                <td class="num">{format_money(c.liq_notional_1h)}</td>
+                <td class="num" style={funding_color(c.funding_rate)}>
+                  {format_funding(c.funding_rate)}
+                </td>
+                <td class="num">
+                  <button phx-click="promote" phx-value-symbol={c.symbol} class="cf-btn">Promote</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+          <div :if={@candidates == []} class="cf-panel-body text-center" style="color: var(--ink-3); font-size: 11px;">
+            No candidates above the activity threshold right now.
+          </div>
+        </div>
 
         <div class="cf-panel cf-panel-flush">
           <div class="cf-panel-head">
@@ -112,4 +223,26 @@ defmodule CounterflowWeb.WatchlistLive do
     </Layouts.shell>
     """
   end
+
+  # ── view helpers ────────────────────────────────────────────
+
+  defp format_money(n) when is_number(n) do
+    cond do
+      n >= 1_000_000 -> "#{Float.round(n / 1_000_000, 2)}M"
+      n >= 1_000 -> "#{Float.round(n / 1_000, 1)}K"
+      true -> "#{Float.round(n, 0)}"
+    end
+  end
+
+  defp format_money(_), do: "—"
+
+  defp format_funding(rate) when is_number(rate) do
+    "#{Float.round(rate * 100, 4)}%"
+  end
+
+  defp format_funding(_), do: "—"
+
+  defp funding_color(rate) when is_number(rate) and rate > 0.001, do: "color: var(--short);"
+  defp funding_color(rate) when is_number(rate) and rate < -0.001, do: "color: var(--long);"
+  defp funding_color(_), do: "color: var(--ink-3);"
 end

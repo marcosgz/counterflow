@@ -29,7 +29,9 @@ config :counterflow,
   paper_bridge_enabled?: false,
   paper_matcher_enabled?: false,
   outcome_evaluator_enabled?: false,
-  auto_tuner_enabled?: false
+  auto_tuner_enabled?: false,
+  promoter_enabled?: false,
+  auto_promote_enabled?: false
 
 # Print only warnings and errors during test
 config :logger, level: :warning
