@@ -23,9 +23,11 @@ defmodule CounterflowWeb.WatchlistLive do
 
   def handle_event("add", %{"symbol" => s}, socket) do
     s = String.upcase(s)
+
     if String.length(s) > 0 do
       Manager.add(s)
     end
+
     {:noreply, assign(socket, watchlist: Watchlist.all(), new_symbol: "")}
   end
 
@@ -83,19 +85,25 @@ defmodule CounterflowWeb.WatchlistLive do
                 phx-click="pin"
                 phx-value-symbol={w.symbol}
                 class="text-yellow-600 hover:underline"
-              >Pin</button>
+              >
+                Pin
+              </button>
               <button
                 :if={w.pinned}
                 phx-click="unpin"
                 phx-value-symbol={w.symbol}
                 class="text-gray-600 hover:underline"
-              >Unpin</button>
+              >
+                Unpin
+              </button>
               <button
                 phx-click="drop"
                 phx-value-symbol={w.symbol}
                 data-confirm={"Remove #{w.symbol}?"}
                 class="text-rose-600 hover:underline"
-              >Remove</button>
+              >
+                Remove
+              </button>
             </td>
           </tr>
         </tbody>

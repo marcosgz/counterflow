@@ -17,7 +17,8 @@ defmodule Counterflow.Broker.LiveTest do
   end
 
   test "non-whitelisted symbol is rejected" do
-    assert {:error, {:not_whitelisted, _}} = Live.place_order("acc", %{symbol: "DOGEUSDT", side: "long"})
+    assert {:error, {:not_whitelisted, _}} =
+             Live.place_order("acc", %{symbol: "DOGEUSDT", side: "long"})
   end
 
   test "even with all gates passing, live broker fails closed (Phase 8b not activated)" do

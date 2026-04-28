@@ -70,7 +70,17 @@ defmodule Counterflow.Broker.PaperFill do
 
   def changeset(f, attrs) do
     f
-    |> cast(attrs, [:order_id, :account_id, :symbol, :side, :price, :qty, :fee, :realized_pnl, :filled_at])
+    |> cast(attrs, [
+      :order_id,
+      :account_id,
+      :symbol,
+      :side,
+      :price,
+      :qty,
+      :fee,
+      :realized_pnl,
+      :filled_at
+    ])
     |> validate_required([:order_id, :account_id, :symbol, :side, :price, :qty, :filled_at])
   end
 end

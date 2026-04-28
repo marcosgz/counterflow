@@ -5,7 +5,9 @@ defmodule Counterflow.WatchlistTest do
 
   test "pin/unpin round-trips a symbol" do
     {:ok, _} = Watchlist.pin("BTCUSDT")
-    assert %WatchlistEntry{pinned: true, promoted_by: "manual"} = Repo.get(WatchlistEntry, "BTCUSDT")
+
+    assert %WatchlistEntry{pinned: true, promoted_by: "manual"} =
+             Repo.get(WatchlistEntry, "BTCUSDT")
 
     {:ok, _} = Watchlist.unpin("BTCUSDT")
     assert %WatchlistEntry{pinned: false} = Repo.get(WatchlistEntry, "BTCUSDT")

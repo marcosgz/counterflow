@@ -11,9 +11,16 @@ defmodule Counterflow.Backtest.Replayer do
 
   alias Counterflow.{Repo, Clock}
   alias Counterflow.Market.{Candle, OpenInterest, FundingRate, LongShortRatio, Liquidation}
-  alias Counterflow.Strategy
   alias Counterflow.Strategy.Input
-  alias Counterflow.Indicators.{BucketedForce, EMA, OIDelta, FundingZ, LiquidationPulse, LSRSignal}
+
+  alias Counterflow.Indicators.{
+    BucketedForce,
+    EMA,
+    OIDelta,
+    FundingZ,
+    LiquidationPulse,
+    LSRSignal
+  }
 
   @history 100
 
@@ -52,7 +59,17 @@ defmodule Counterflow.Backtest.Replayer do
         funding_window = filter_until(funding_series, candle.time) |> Enum.take(-30)
         liq_window = filter_until(liq_series, candle.time)
 
-        input = build_input(symbol, interval, candle, history, oi_window, lsr_window, funding_window, liq_window)
+        input =
+          build_input(
+            symbol,
+            interval,
+            candle,
+            history,
+            oi_window,
+            lsr_window,
+            funding_window,
+            liq_window
+          )
 
         case strategy_mod.evaluate(input, strategy_opts) do
           {:signal, sig} -> [sig | acc]
@@ -103,23 +120,37 @@ defmodule Counterflow.Backtest.Replayer do
   end
 
   defp load_oi(symbol, from, to) do
-    Repo.all(from o in OpenInterest, where: o.symbol == ^symbol and o.time >= ^from and o.time < ^to, order_by: [asc: o.time])
+    Repo.all(
+      from o in OpenInterest,
+        where: o.symbol == ^symbol and o.time >= ^from and o.time < ^to,
+        order_by: [asc: o.time]
+    )
   end
 
   defp load_lsr(symbol, from, to) do
     Repo.all(
       from l in LongShortRatio,
-        where: l.symbol == ^symbol and l.source == "global_account" and l.time >= ^from and l.time < ^to,
+        where:
+          l.symbol == ^symbol and l.source == "global_account" and l.time >= ^from and
+            l.time < ^to,
         order_by: [asc: l.time]
     )
   end
 
   defp load_funding(symbol, from, to) do
-    Repo.all(from f in FundingRate, where: f.symbol == ^symbol and f.time >= ^from and f.time < ^to, order_by: [asc: f.time])
+    Repo.all(
+      from f in FundingRate,
+        where: f.symbol == ^symbol and f.time >= ^from and f.time < ^to,
+        order_by: [asc: f.time]
+    )
   end
 
   defp load_liquidations(symbol, from, to) do
-    Repo.all(from l in Liquidation, where: l.symbol == ^symbol and l.time >= ^from and l.time < ^to, order_by: [asc: l.time])
+    Repo.all(
+      from l in Liquidation,
+        where: l.symbol == ^symbol and l.time >= ^from and l.time < ^to,
+        order_by: [asc: l.time]
+    )
   end
 
   defp filter_until(series, %DateTime{} = ts) do

@@ -5,7 +5,11 @@ defmodule Counterflow.Indicators.OIDeltaTest do
   alias Counterflow.Market.{Candle, OpenInterest}
 
   defp oi(value),
-    do: %OpenInterest{symbol: "X", time: DateTime.utc_now(), open_interest: Decimal.new("#{value}")}
+    do: %OpenInterest{
+      symbol: "X",
+      time: DateTime.utc_now(),
+      open_interest: Decimal.new("#{value}")
+    }
 
   defp candle(close),
     do: %Candle{

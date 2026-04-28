@@ -19,7 +19,12 @@ defmodule Counterflow.Risk.KillSwitch do
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
   def child_spec(opts) do
-    %{id: __MODULE__, start: {__MODULE__, :start_link, [opts]}, restart: :permanent, type: :worker}
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :permanent,
+      type: :worker
+    }
   end
 
   @impl true

@@ -11,7 +11,12 @@ defmodule Counterflow.Strategy.Cooldown do
   def start_link(_opts), do: GenServer.start_link(__MODULE__, nil, name: __MODULE__)
 
   def child_spec(opts) do
-    %{id: __MODULE__, start: {__MODULE__, :start_link, [opts]}, restart: :permanent, type: :worker}
+    %{
+      id: __MODULE__,
+      start: {__MODULE__, :start_link, [opts]},
+      restart: :permanent,
+      type: :worker
+    }
   end
 
   @impl true
@@ -31,7 +36,9 @@ defmodule Counterflow.Strategy.Cooldown do
     minimum_age = cooldown_minutes * 60
 
     case :ets.lookup(@table, key) do
-      [{^key, last}] when now - last < minimum_age -> :cooldown
+      [{^key, last}] when now - last < minimum_age ->
+        :cooldown
+
       _ ->
         :ets.insert(@table, {key, now})
         :ok

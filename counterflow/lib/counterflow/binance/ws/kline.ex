@@ -31,7 +31,11 @@ defmodule Counterflow.Binance.WS.Kline do
       backoff_ms: 1_000
     }
 
-    WebSockex.start_link(url, __MODULE__, state, name: name, async: true, handle_initial_conn_failure: true)
+    WebSockex.start_link(url, __MODULE__, state,
+      name: name,
+      async: true,
+      handle_initial_conn_failure: true
+    )
   end
 
   def child_spec(opts) do
@@ -55,7 +59,12 @@ defmodule Counterflow.Binance.WS.Kline do
   @impl true
   def handle_connect(_conn, state) do
     Logger.info("kline ws connected: #{state.symbol}/#{state.interval}")
-    :telemetry.execute([:counterflow, :ingest, :ws, :connected], %{count: 1}, %{symbol: state.symbol, interval: state.interval})
+
+    :telemetry.execute([:counterflow, :ingest, :ws, :connected], %{count: 1}, %{
+      symbol: state.symbol,
+      interval: state.interval
+    })
+
     {:ok, %{state | backoff_ms: 1_000}}
   end
 
@@ -80,8 +89,15 @@ defmodule Counterflow.Binance.WS.Kline do
 
   @impl true
   def handle_disconnect(%{reason: reason}, state) do
-    Logger.warning("kline ws disconnected #{state.symbol}/#{state.interval}: #{inspect(reason)}; reconnecting in #{state.backoff_ms}ms")
-    :telemetry.execute([:counterflow, :ingest, :ws, :disconnected], %{count: 1}, %{symbol: state.symbol, interval: state.interval})
+    Logger.warning(
+      "kline ws disconnected #{state.symbol}/#{state.interval}: #{inspect(reason)}; reconnecting in #{state.backoff_ms}ms"
+    )
+
+    :telemetry.execute([:counterflow, :ingest, :ws, :disconnected], %{count: 1}, %{
+      symbol: state.symbol,
+      interval: state.interval
+    })
+
     Process.sleep(state.backoff_ms)
     {:reconnect, %{state | backoff_ms: min(state.backoff_ms * 2, @max_backoff_ms)}}
   end

@@ -63,14 +63,22 @@ defmodule Counterflow.Watchlist.Manager do
   # ── helpers ─────────────────────────────────────────────────
 
   defp load_symbols do
-    Repo.all(from w in WatchlistEntry, order_by: [desc: w.pinned, asc: w.symbol], select: w.symbol)
+    Repo.all(
+      from w in WatchlistEntry, order_by: [desc: w.pinned, asc: w.symbol], select: w.symbol
+    )
   end
 
   defp ensure_entry(symbol, by) do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
     Repo.insert!(
-      %WatchlistEntry{symbol: symbol, added_at: now, pinned: by == "manual", promoted_by: by, last_active_at: now},
+      %WatchlistEntry{
+        symbol: symbol,
+        added_at: now,
+        pinned: by == "manual",
+        promoted_by: by,
+        last_active_at: now
+      },
       on_conflict: :nothing,
       conflict_target: [:symbol]
     )
@@ -102,8 +110,12 @@ defmodule Counterflow.Watchlist.Manager do
 
   defp start_child(spec) do
     case DynamicSupervisor.start_child(Counterflow.Watchlist.DynamicSupervisor, spec) do
-      {:ok, _pid} -> :ok
-      {:error, {:already_started, _}} -> :ok
+      {:ok, _pid} ->
+        :ok
+
+      {:error, {:already_started, _}} ->
+        :ok
+
       {:error, err} ->
         Logger.warning("watchlist start_child failed: #{inspect(err)}")
         :error
@@ -111,6 +123,7 @@ defmodule Counterflow.Watchlist.Manager do
   end
 
   defp stop_pid(nil), do: :ok
+
   defp stop_pid(pid) when is_pid(pid) do
     DynamicSupervisor.terminate_child(Counterflow.Watchlist.DynamicSupervisor, pid)
   end

@@ -3,7 +3,17 @@ defmodule Counterflow.Backtest.MetricsTest do
 
   alias Counterflow.Backtest.Metrics
 
-  defp pair(r), do: {nil, %{hit_tp1: r > 0, hit_tp2: r >= 2, hit_sl: r < 0, r_multiple: r * 1.0, peak_R: max(r * 1.0, 0.0), trough_R: min(r * 1.0, 0.0)}}
+  defp pair(r),
+    do:
+      {nil,
+       %{
+         hit_tp1: r > 0,
+         hit_tp2: r >= 2,
+         hit_sl: r < 0,
+         r_multiple: r * 1.0,
+         peak_R: max(r * 1.0, 0.0),
+         trough_R: min(r * 1.0, 0.0)
+       }}
 
   test "summarize on empty input" do
     assert %{total: 0, win_rate: 0.0, profit_factor: 0.0} = Metrics.summarize([])

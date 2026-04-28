@@ -67,7 +67,8 @@ defmodule Counterflow.Ingest.SymbolWorker do
   end
 
   @impl true
-  def handle_continue(:backfill, %{candles: cs} = state) when length(cs) > 0, do: {:noreply, state}
+  def handle_continue(:backfill, %{candles: cs} = state) when length(cs) > 0,
+    do: {:noreply, state}
 
   def handle_continue(:backfill, %{symbol: s, interval: i} = state) do
     case Counterflow.Binance.Rest.klines(s, i, limit: @history_size) do
@@ -96,7 +97,12 @@ defmodule Counterflow.Ingest.SymbolWorker do
       end
 
     PubSub.broadcast(Counterflow.PubSub, topic(s, i), {:candle, broadcast_kind, candle})
-    :telemetry.execute([:counterflow, :candle, broadcast_kind], %{count: 1}, %{symbol: s, interval: i})
+
+    :telemetry.execute([:counterflow, :candle, broadcast_kind], %{count: 1}, %{
+      symbol: s,
+      interval: i
+    })
+
     {:noreply, %{state | candles: candles, open: if(candle.closed, do: nil, else: candle)}}
   end
 
@@ -170,7 +176,12 @@ defmodule Counterflow.Ingest.SymbolWorker do
   end
 
   # parse a REST /klines row (positional list)
-  defp kline_row_to_candle([t, o, h, l, c, v, _ct, qv, n, tbb, tbq, _ignore], symbol, interval, closed?) do
+  defp kline_row_to_candle(
+         [t, o, h, l, c, v, _ct, qv, n, tbb, tbq, _ignore],
+         symbol,
+         interval,
+         closed?
+       ) do
     %Candle{
       symbol: symbol,
       interval: interval,

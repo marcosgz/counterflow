@@ -77,16 +77,19 @@ defmodule CounterflowWeb.SignalsLive do
       </form>
 
       <div id="signals-feed" phx-update="stream" class="space-y-1 text-sm font-mono">
-        <div :for={{dom_id, s} <- @streams.signals} id={dom_id}
-             class={["p-3 rounded border-l-4", side_color(s.side)]}>
+        <div
+          :for={{dom_id, s} <- @streams.signals}
+          id={dom_id}
+          class={["p-3 rounded border-l-4", side_color(s.side)]}
+        >
           <div class="flex justify-between">
             <span class="font-bold">
               <.link navigate={~p"/symbol/#{s.symbol}"} class="underline">{s.symbol}</.link>
-              <span class="uppercase">{s.side}</span>
-              @ {s.price}
-              ({s.interval})
+              <span class="uppercase">{s.side}</span> @ {s.price} ({s.interval})
             </span>
-            <span class="text-gray-500">{Calendar.strftime(s.generated_at, "%Y-%m-%d %H:%M:%S")}</span>
+            <span class="text-gray-500">
+              {Calendar.strftime(s.generated_at, "%Y-%m-%d %H:%M:%S")}
+            </span>
           </div>
           <div class="text-xs text-gray-500">
             score={s.score} · lev={s.leverage}× ·
@@ -94,11 +97,13 @@ defmodule CounterflowWeb.SignalsLive do
           </div>
           <div class="text-xs">
             <%= for note <- (s.notes || []) do %>
-              <span class="inline-block bg-gray-100 dark:bg-gray-800 px-2 py-0.5 mr-1 rounded">{note}</span>
+              <span class="inline-block bg-gray-100 dark:bg-gray-800 px-2 py-0.5 mr-1 rounded">
+                {note}
+              </span>
             <% end %>
           </div>
         </div>
-        <div class="text-gray-500" :if={@streams.signals == []}>No signals match.</div>
+        <div :if={@streams.signals == []} class="text-gray-500">No signals match.</div>
       </div>
     </div>
     """

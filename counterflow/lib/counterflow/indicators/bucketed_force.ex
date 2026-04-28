@@ -47,6 +47,7 @@ defmodule Counterflow.Indicators.BucketedForce do
       if value > avg * mult, do: level
     end)
   end
+
   defp bucket(_v, _avg), do: 0
 
   defp to_float(%Decimal{} = d), do: Decimal.to_float(d)

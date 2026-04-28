@@ -25,7 +25,11 @@ defmodule Counterflow.Ingest.Poller.Funding do
           end)
 
         upsert(records)
-        Enum.each(records, &PubSub.broadcast(Counterflow.PubSub, "mark_price:#{&1.symbol}", {:mark_price, &1}))
+
+        Enum.each(
+          records,
+          &PubSub.broadcast(Counterflow.PubSub, "mark_price:#{&1.symbol}", {:mark_price, &1})
+        )
 
       _ ->
         :skip

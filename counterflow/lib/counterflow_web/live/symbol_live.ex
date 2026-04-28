@@ -64,7 +64,9 @@ defmodule CounterflowWeb.SymbolLive do
   end
 
   defp recent_oi(symbol) do
-    Repo.all(from o in OpenInterest, where: o.symbol == ^symbol, order_by: [desc: o.time], limit: 12)
+    Repo.all(
+      from o in OpenInterest, where: o.symbol == ^symbol, order_by: [desc: o.time], limit: 12
+    )
   end
 
   defp recent_lsr(symbol) do
@@ -77,11 +79,15 @@ defmodule CounterflowWeb.SymbolLive do
   end
 
   defp recent_funding(symbol) do
-    Repo.all(from f in FundingRate, where: f.symbol == ^symbol, order_by: [desc: f.time], limit: 5)
+    Repo.all(
+      from f in FundingRate, where: f.symbol == ^symbol, order_by: [desc: f.time], limit: 5
+    )
   end
 
   defp recent_signals(symbol) do
-    Repo.all(from s in Signal, where: s.symbol == ^symbol, order_by: [desc: s.generated_at], limit: 20)
+    Repo.all(
+      from s in Signal, where: s.symbol == ^symbol, order_by: [desc: s.generated_at], limit: 20
+    )
   end
 
   @impl true
@@ -112,7 +118,10 @@ defmodule CounterflowWeb.SymbolLive do
               </tr>
             </thead>
             <tbody>
-              <tr :for={c <- Enum.reverse(@candles)} class={if c.closed, do: "", else: "bg-yellow-50 dark:bg-yellow-900/20"}>
+              <tr
+                :for={c <- Enum.reverse(@candles)}
+                class={if c.closed, do: "", else: "bg-yellow-50 dark:bg-yellow-900/20"}
+              >
                 <td class="p-1">{Calendar.strftime(c.time, "%H:%M:%S")}</td>
                 <td class="p-1 text-right">{c.open}</td>
                 <td class="p-1 text-right">{c.high}</td>

@@ -52,7 +52,9 @@ defmodule CounterflowWeb.OverviewLive do
   defp recent_liquidations do
     Repo.all(from l in Liquidation, order_by: [desc: l.time], limit: @recent_liqs_limit)
     |> Enum.with_index()
-    |> Enum.map(fn {l, i} -> Map.put(l, :id, "#{l.symbol}-#{DateTime.to_unix(l.time, :microsecond)}-#{i}") end)
+    |> Enum.map(fn {l, i} ->
+      Map.put(l, :id, "#{l.symbol}-#{DateTime.to_unix(l.time, :microsecond)}-#{i}")
+    end)
   end
 
   defp top_funding(:positive) do
@@ -91,7 +93,10 @@ defmodule CounterflowWeb.OverviewLive do
           <.link
             :for={w <- @watchlist}
             navigate={~p"/symbol/#{w.symbol}"}
-            class={["block p-3 rounded border text-center font-mono", if(w.pinned, do: "bg-yellow-100 dark:bg-yellow-900/30", else: "")]}
+            class={[
+              "block p-3 rounded border text-center font-mono",
+              if(w.pinned, do: "bg-yellow-100 dark:bg-yellow-900/30", else: "")
+            ]}
           >
             <div class="font-bold">{w.symbol}</div>
             <div class="text-xs text-gray-500">{w.promoted_by || "-"}</div>
@@ -105,7 +110,9 @@ defmodule CounterflowWeb.OverviewLive do
           <table class="w-full text-sm font-mono">
             <thead>
               <tr class="text-left">
-                <th>Symbol</th><th class="text-right">Rate</th><th class="text-right">Mark</th>
+                <th>Symbol</th>
+                <th class="text-right">Rate</th>
+                <th class="text-right">Mark</th>
               </tr>
             </thead>
             <tbody>
@@ -123,7 +130,9 @@ defmodule CounterflowWeb.OverviewLive do
           <table class="w-full text-sm font-mono">
             <thead>
               <tr class="text-left">
-                <th>Symbol</th><th class="text-right">Rate</th><th class="text-right">Mark</th>
+                <th>Symbol</th>
+                <th class="text-right">Rate</th>
+                <th class="text-right">Mark</th>
               </tr>
             </thead>
             <tbody>
@@ -140,29 +149,38 @@ defmodule CounterflowWeb.OverviewLive do
       <section>
         <h2 class="text-xl font-semibold mb-3">Recent Signals</h2>
         <div id="signals-list" phx-update="stream" class="space-y-1 text-sm font-mono">
-          <div :for={{dom_id, sig} <- @streams.signals} id={dom_id}
-               class={["p-2 rounded border-l-4", side_color(sig.side)]}>
+          <div
+            :for={{dom_id, sig} <- @streams.signals}
+            id={dom_id}
+            class={["p-2 rounded border-l-4", side_color(sig.side)]}
+          >
             <span class="font-bold">{sig.symbol}</span>
             <span class="uppercase">{sig.side}</span>
             <span>@ {sig.price}</span>
             <span>score={sig.score}</span>
             <span class="text-gray-500">{Calendar.strftime(sig.generated_at, "%H:%M:%S")}</span>
           </div>
-          <div class="text-gray-500" :if={@streams.signals == []}>No signals yet.</div>
+          <div :if={@streams.signals == []} class="text-gray-500">No signals yet.</div>
         </div>
       </section>
 
       <section>
         <h2 class="text-xl font-semibold mb-3">Recent Liquidations (firehose)</h2>
         <div id="liqs-list" phx-update="stream" class="space-y-1 text-xs font-mono">
-          <div :for={{dom_id, l} <- @streams.liquidations} id={dom_id} class="grid grid-cols-5 gap-2 border-b py-1">
+          <div
+            :for={{dom_id, l} <- @streams.liquidations}
+            id={dom_id}
+            class="grid grid-cols-5 gap-2 border-b py-1"
+          >
             <span class="font-bold">{l.symbol}</span>
-            <span class={if l.side == "SELL", do: "text-rose-500", else: "text-emerald-500"}>{l.side}</span>
+            <span class={if l.side == "SELL", do: "text-rose-500", else: "text-emerald-500"}>
+              {l.side}
+            </span>
             <span class="text-right">{l.price}</span>
             <span class="text-right">{l.qty}</span>
             <span class="text-right text-gray-500">{Calendar.strftime(l.time, "%H:%M:%S")}</span>
           </div>
-          <div class="text-gray-500" :if={@streams.liquidations == []}>Listening…</div>
+          <div :if={@streams.liquidations == []} class="text-gray-500">Listening…</div>
         </div>
       </section>
     </div>

@@ -43,7 +43,9 @@ defmodule Counterflow.Risk.GatesTest do
 
   test "rejects when local/remote price diverges" do
     assert {:error, :price_divergence, _} =
-             Gates.check(ctx(%{price_local: Decimal.new("50000"), price_remote: Decimal.new("60000")}))
+             Gates.check(
+               ctx(%{price_local: Decimal.new("50000"), price_remote: Decimal.new("60000")})
+             )
   end
 
   test "rejects when symbol not whitelisted" do

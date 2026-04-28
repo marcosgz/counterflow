@@ -70,6 +70,7 @@ defmodule Counterflow.Strategy.Counterflow do
   defp tf_bias(%Input{tf: %{level: l}, candle: c}) when is_integer(l) and l >= 3 do
     if Decimal.gt?(c.close, c.open), do: :long, else: :short
   end
+
   defp tf_bias(_), do: :neutral
 
   # Extreme funding: contra side
@@ -80,6 +81,7 @@ defmodule Counterflow.Strategy.Counterflow do
       true -> :neutral
     end
   end
+
   defp funding_bias(_), do: :neutral
 
   defp liquidation_bias(%Input{liq_pulse: %{percentile: p, direction: dir}})
@@ -90,6 +92,7 @@ defmodule Counterflow.Strategy.Counterflow do
       _ -> :neutral
     end
   end
+
   defp liquidation_bias(_), do: :neutral
 
   defp oi_bias(%Input{oi_delta: %{signal: :longs_trapped}}), do: :short
@@ -112,20 +115,24 @@ defmodule Counterflow.Strategy.Counterflow do
   defp tf_component(%Input{tf: %{level: l}, candle: c}, :long) when is_integer(l) do
     if Decimal.gt?(c.close, c.open), do: l / 6.0, else: -l / 6.0
   end
+
   defp tf_component(%Input{tf: %{level: l}, candle: c}, :short) when is_integer(l) do
     if Decimal.lt?(c.close, c.open), do: l / 6.0, else: -l / 6.0
   end
+
   defp tf_component(_, _), do: 0.0
 
   defp oi_component(%Input{oi_delta: %{signal: sig}}, :long) do
     case sig do
-      :longs_trapped -> -1.0       # LONG side does NOT want longs trapped
+      # LONG side does NOT want longs trapped
+      :longs_trapped -> -1.0
       :shorts_trapped -> 1.0
       :stacking -> 0.3
       :unwinding -> -0.3
       _ -> 0.0
     end
   end
+
   defp oi_component(%Input{oi_delta: %{signal: sig}}, :short) do
     case sig do
       :longs_trapped -> 1.0
@@ -134,6 +141,7 @@ defmodule Counterflow.Strategy.Counterflow do
       _ -> 0.0
     end
   end
+
   defp oi_component(_, _), do: 0.0
 
   defp funding_component(%Input{funding_z: %{z: z}}, :long) when is_number(z) do
@@ -143,6 +151,7 @@ defmodule Counterflow.Strategy.Counterflow do
       true -> -z / 2.0
     end
   end
+
   defp funding_component(%Input{funding_z: %{z: z}}, :short) when is_number(z) do
     cond do
       z > 2.0 -> 1.0
@@ -150,6 +159,7 @@ defmodule Counterflow.Strategy.Counterflow do
       true -> z / 2.0
     end
   end
+
   defp funding_component(_, _), do: 0.0
 
   defp liquidation_component(%Input{liq_pulse: %{percentile: p, direction: dir}}, side)
@@ -165,6 +175,7 @@ defmodule Counterflow.Strategy.Counterflow do
 
     sign * min(p, 1.0)
   end
+
   defp liquidation_component(_, _), do: 0.0
 
   defp lsr_component(%Input{lsr_signal: %{extreme: ex}}, :short) do
@@ -174,6 +185,7 @@ defmodule Counterflow.Strategy.Counterflow do
       _ -> 0.0
     end
   end
+
   defp lsr_component(%Input{lsr_signal: %{extreme: ex}}, :long) do
     case ex do
       :shorts_overheated -> 1.0
@@ -181,6 +193,7 @@ defmodule Counterflow.Strategy.Counterflow do
       _ -> 0.0
     end
   end
+
   defp lsr_component(_, _), do: 0.0
 
   defp weighted_sum(components, weights) do

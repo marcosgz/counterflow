@@ -28,7 +28,13 @@ defmodule Counterflow.Indicators.LSRSignal do
     ema_fast = EMA.last(values, 7)
     ema_slow = EMA.last(values, 25)
 
-    %{raw: raw, rsi: rsi, ema_fast: ema_fast, ema_slow: ema_slow, extreme: classify(raw, rsi, ema_fast, ema_slow)}
+    %{
+      raw: raw,
+      rsi: rsi,
+      ema_fast: ema_fast,
+      ema_slow: ema_slow,
+      extreme: classify(raw, rsi, ema_fast, ema_slow)
+    }
   end
 
   defp classify(raw, rsi, ef, es)

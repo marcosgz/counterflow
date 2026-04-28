@@ -16,7 +16,12 @@ defmodule Counterflow.Binance.WS.Liquidations do
 
   def start_link(_opts \\ []) do
     state = %{backoff_ms: 1_000}
-    WebSockex.start_link("#{base()}/ws/!forceOrder@arr", __MODULE__, state, name: __MODULE__, async: true, handle_initial_conn_failure: true)
+
+    WebSockex.start_link("#{base()}/ws/!forceOrder@arr", __MODULE__, state,
+      name: __MODULE__,
+      async: true,
+      handle_initial_conn_failure: true
+    )
   end
 
   def child_spec(_opts) do
@@ -39,7 +44,12 @@ defmodule Counterflow.Binance.WS.Liquidations do
 
         Repo.insert_all(Liquidation, [record])
         PubSub.broadcast(Counterflow.PubSub, "liquidations:firehose", {:liquidation, record})
-        PubSub.broadcast(Counterflow.PubSub, "liquidations:#{record.symbol}", {:liquidation, record})
+
+        PubSub.broadcast(
+          Counterflow.PubSub,
+          "liquidations:#{record.symbol}",
+          {:liquidation, record}
+        )
 
       _ ->
         :ok
@@ -53,7 +63,10 @@ defmodule Counterflow.Binance.WS.Liquidations do
 
   @impl true
   def handle_disconnect(%{reason: reason}, state) do
-    Logger.warning("liquidations ws disconnected: #{inspect(reason)}, reconnecting in #{state.backoff_ms}ms")
+    Logger.warning(
+      "liquidations ws disconnected: #{inspect(reason)}, reconnecting in #{state.backoff_ms}ms"
+    )
+
     Process.sleep(state.backoff_ms)
     {:reconnect, %{state | backoff_ms: min(state.backoff_ms * 2, 60_000)}}
   end

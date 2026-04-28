@@ -45,15 +45,20 @@ defmodule Counterflow.Broker.Paper do
   # ── broker behaviour ───────────────────────────────────────
 
   @impl true
-  def place_order(account_id, %{
-        symbol: symbol,
-        side: side,
-        type: type,
-        qty: qty
-      } = opts) do
+  def place_order(
+        account_id,
+        %{
+          symbol: symbol,
+          side: side,
+          type: type,
+          qty: qty
+        } = opts
+      ) do
     account = Repo.get!(PaperAccount, account_id)
     now = utc_now()
-    client_id = Map.get_lazy(opts, :client_id, fn -> "p-#{System.unique_integer([:positive])}" end)
+
+    client_id =
+      Map.get_lazy(opts, :client_id, fn -> "p-#{System.unique_integer([:positive])}" end)
 
     {:ok, order} =
       Repo.transaction(fn ->
@@ -89,7 +94,9 @@ defmodule Counterflow.Broker.Paper do
   @impl true
   def cancel_order(_account_id, client_id) do
     case Repo.get_by(PaperOrder, client_id: client_id) do
-      nil -> {:error, :not_found}
+      nil ->
+        {:error, :not_found}
+
       order ->
         order |> PaperOrder.changeset(%{status: "CANCELED"}) |> Repo.update!()
         :ok
@@ -98,7 +105,8 @@ defmodule Counterflow.Broker.Paper do
 
   @impl true
   def positions(account_id) do
-    {:ok, Repo.all(from p in PaperPosition, where: p.account_id == ^account_id and is_nil(p.closed_at))}
+    {:ok,
+     Repo.all(from p in PaperPosition, where: p.account_id == ^account_id and is_nil(p.closed_at))}
   end
 
   @impl true
@@ -111,7 +119,8 @@ defmodule Counterflow.Broker.Paper do
 
   @impl true
   def open_orders(account_id) do
-    {:ok, Repo.all(from o in PaperOrder, where: o.account_id == ^account_id and o.status == "NEW")}
+    {:ok,
+     Repo.all(from o in PaperOrder, where: o.account_id == ^account_id and o.status == "NEW")}
   end
 
   # ── matching engine ─────────────────────────────────────────
@@ -213,9 +222,8 @@ defmodule Counterflow.Broker.Paper do
     )
   end
 
-  defp position_side_from_order("BUY", false), do: "LONG"
-  defp position_side_from_order("SELL", false), do: "SHORT"
-  defp position_side_from_order(_side, true), do: "LONG"
+  defp position_side_from_order("BUY", _reduce_only), do: "LONG"
+  defp position_side_from_order("SELL", _reduce_only), do: "SHORT"
 
   defp same_direction?("LONG", "BUY"), do: true
   defp same_direction?("SHORT", "SELL"), do: true
@@ -236,7 +244,9 @@ defmodule Counterflow.Broker.Paper do
   end
 
   defp account_fee(account, :taker), do: Map.get(account.config, "taker_fee", @default_taker_fee)
-  defp account_fee(account, :maker), do: Map.get(account.config, "maker_fee", @default_maker_fee)
+  # :maker kept for the LIMIT-fill path that lands when the matching engine
+  # graduates from MARKET-only to live-tape limit fills.
+  def account_maker_fee(account), do: Map.get(account.config, "maker_fee", @default_maker_fee)
 
   defp utc_now, do: DateTime.utc_now() |> DateTime.truncate(:microsecond)
 end

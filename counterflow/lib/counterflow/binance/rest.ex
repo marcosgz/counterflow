@@ -25,19 +25,35 @@ defmodule Counterflow.Binance.Rest do
 
   @spec open_interest_hist(String.t(), keyword()) :: {:ok, [map()]} | {:error, Error.t()}
   def open_interest_hist(symbol, opts \\ []) do
-    params = [symbol: symbol, period: Keyword.get(opts, :period, "5m"), limit: Keyword.get(opts, :limit, 30)]
+    params = [
+      symbol: symbol,
+      period: Keyword.get(opts, :period, "5m"),
+      limit: Keyword.get(opts, :limit, 30)
+    ]
+
     request(:get, "/futures/data/openInterestHist", params: params)
   end
 
   @spec long_short_account_ratio(String.t(), keyword()) :: {:ok, [map()]} | {:error, Error.t()}
   def long_short_account_ratio(symbol, opts \\ []) do
-    params = [symbol: symbol, period: Keyword.get(opts, :period, "5m"), limit: Keyword.get(opts, :limit, 30)]
+    params = [
+      symbol: symbol,
+      period: Keyword.get(opts, :period, "5m"),
+      limit: Keyword.get(opts, :limit, 30)
+    ]
+
     request(:get, "/futures/data/globalLongShortAccountRatio", params: params)
   end
 
-  @spec top_long_short_position_ratio(String.t(), keyword()) :: {:ok, [map()]} | {:error, Error.t()}
+  @spec top_long_short_position_ratio(String.t(), keyword()) ::
+          {:ok, [map()]} | {:error, Error.t()}
   def top_long_short_position_ratio(symbol, opts \\ []) do
-    params = [symbol: symbol, period: Keyword.get(opts, :period, "5m"), limit: Keyword.get(opts, :limit, 30)]
+    params = [
+      symbol: symbol,
+      period: Keyword.get(opts, :period, "5m"),
+      limit: Keyword.get(opts, :limit, 30)
+    ]
+
     request(:get, "/futures/data/topLongShortPositionRatio", params: params)
   end
 
@@ -86,7 +102,12 @@ defmodule Counterflow.Binance.Rest do
 
           _ ->
             {:error,
-             %Error{status: status, message: "non-200 response", retryable: status >= 500, raw: body}}
+             %Error{
+               status: status,
+               message: "non-200 response",
+               retryable: status >= 500,
+               raw: body
+             }}
         end
 
       {:error, exc} ->
@@ -97,11 +118,13 @@ defmodule Counterflow.Binance.Rest do
   defp base_url, do: Application.get_env(:counterflow, :binance_rest_base, @base_url)
 
   defp maybe_decode(body) when is_map(body), do: body
+
   defp maybe_decode(body) when is_binary(body) do
     case Jason.decode(body) do
       {:ok, decoded} -> decoded
       _ -> body
     end
   end
+
   defp maybe_decode(body), do: body
 end

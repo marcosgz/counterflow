@@ -15,8 +15,14 @@ defmodule Counterflow.Indicators.OIDelta do
   smart-money setups (longs about to be flushed for liquidation harvest).
   """
 
-  @type signal :: :stacking | :unwinding | :longs_trapped | :shorts_trapped |
-                  :longs_chasing | :shorts_chasing | :neutral
+  @type signal ::
+          :stacking
+          | :unwinding
+          | :longs_trapped
+          | :shorts_trapped
+          | :longs_chasing
+          | :shorts_chasing
+          | :neutral
 
   @type result :: %{
           signal: signal(),
@@ -24,7 +30,8 @@ defmodule Counterflow.Indicators.OIDelta do
           price_change_pct: float()
         }
 
-  @spec calculate([Counterflow.Market.OpenInterest.t()], [Counterflow.Market.Candle.t()]) :: result()
+  @spec calculate([Counterflow.Market.OpenInterest.t()], [Counterflow.Market.Candle.t()]) ::
+          result()
   def calculate([], _candles), do: empty()
   def calculate(_oi, []), do: empty()
 

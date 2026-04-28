@@ -23,7 +23,8 @@ defmodule Counterflow.Ingest.Supervisor do
     children =
       [
         Counterflow.Ingest.Registry,
-        {DynamicSupervisor, name: Counterflow.Watchlist.DynamicSupervisor, strategy: :one_for_one},
+        {DynamicSupervisor,
+         name: Counterflow.Watchlist.DynamicSupervisor, strategy: :one_for_one},
         {Counterflow.Watchlist.Manager, seed: seed, intervals: intervals}
       ]
       |> maybe_add(liquidations_enabled?, Counterflow.Binance.WS.Liquidations)

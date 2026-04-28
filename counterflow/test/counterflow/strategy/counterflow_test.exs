@@ -35,7 +35,8 @@ defmodule Counterflow.Strategy.CounterflowStrategyTest do
       oi_delta: opts[:oi] || %{signal: :neutral, oi_change_pct: 0.0, price_change_pct: 0.0},
       funding_z: opts[:funding] || %{z: 0.0, latest: 0.0, mean: 0.0, stddev: 0.0},
       liq_pulse: opts[:liq] || %{percentile: 0.0, recent_total: 0.0, direction: :none},
-      lsr_signal: opts[:lsr] || %{raw: 1.0, rsi: 50.0, ema_fast: 1.0, ema_slow: 1.0, extreme: :neutral},
+      lsr_signal:
+        opts[:lsr] || %{raw: 1.0, rsi: 50.0, ema_fast: 1.0, ema_slow: 1.0, extreme: :neutral},
       now: ~U[2026-04-28 12:00:00.000000Z]
     }
   end

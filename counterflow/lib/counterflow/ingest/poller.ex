@@ -34,11 +34,20 @@ defmodule Counterflow.Ingest.Poller do
 
         try do
           poll(state)
-          :telemetry.execute([:counterflow, :poll, :ok], %{duration_ms: System.monotonic_time(:millisecond) - start}, %{poller: @poller_name})
+
+          :telemetry.execute(
+            [:counterflow, :poll, :ok],
+            %{duration_ms: System.monotonic_time(:millisecond) - start},
+            %{poller: @poller_name}
+          )
         rescue
           err ->
             Logger.warning("[#{@poller_name}] poll failed: #{Exception.message(err)}")
-            :telemetry.execute([:counterflow, :poll, :error], %{count: 1}, %{poller: @poller_name, kind: err.__struct__})
+
+            :telemetry.execute([:counterflow, :poll, :error], %{count: 1}, %{
+              poller: @poller_name,
+              kind: err.__struct__
+            })
         end
 
         Process.send_after(self(), :tick, @interval_ms)

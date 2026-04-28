@@ -67,7 +67,8 @@ defmodule Counterflow.Backtest.Metrics do
   Walk forward through `future_candles` from a signal and determine which
   bracket (tp1, tp2, sl) hit first within `ttl_minutes`.
   """
-  @spec evaluate_outcome(Counterflow.Strategy.Signal.t(), [Counterflow.Market.Candle.t()]) :: outcome()
+  @spec evaluate_outcome(Counterflow.Strategy.Signal.t(), [Counterflow.Market.Candle.t()]) ::
+          outcome()
   def evaluate_outcome(sig, future_candles) do
     direction = if sig.side == "long", do: 1.0, else: -1.0
     entry = Decimal.to_float(sig.price)
@@ -79,10 +80,12 @@ defmodule Counterflow.Backtest.Metrics do
     cutoff =
       DateTime.add(sig.generated_at, sig.ttl_minutes * 60, :second)
 
-    relevant = Enum.take_while(future_candles, fn c -> DateTime.compare(c.time, cutoff) == :lt end)
+    relevant =
+      Enum.take_while(future_candles, fn c -> DateTime.compare(c.time, cutoff) == :lt end)
 
     {hit_sl?, hit_tp1?, hit_tp2?, peak, trough} =
-      Enum.reduce(relevant, {false, false, false, 0.0, 0.0}, fn c, {sl?, tp1?, tp2?, peak, trough} ->
+      Enum.reduce(relevant, {false, false, false, 0.0, 0.0}, fn c,
+                                                                {sl?, tp1?, tp2?, peak, trough} ->
         high = Decimal.to_float(c.high)
         low = Decimal.to_float(c.low)
         max_excursion = (max(high, low) - entry) * direction / r

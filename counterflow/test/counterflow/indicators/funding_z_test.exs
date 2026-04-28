@@ -13,7 +13,7 @@ defmodule Counterflow.Indicators.FundingZTest do
   end
 
   test "z is positive when latest is above mean" do
-    series = (for _ <- 1..29, do: rate(0.0001)) ++ [rate(0.005)]
+    series = for(_ <- 1..29, do: rate(0.0001)) ++ [rate(0.005)]
     %{z: z} = FundingZ.calculate(series)
     assert z > 4.0
   end

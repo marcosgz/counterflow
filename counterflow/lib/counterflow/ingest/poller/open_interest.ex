@@ -17,7 +17,10 @@ defmodule Counterflow.Ingest.Poller.OpenInterest do
     end)
   end
 
-  defp row_to_record(%{"sumOpenInterest" => oi, "sumOpenInterestValue" => oiv, "timestamp" => ts}, symbol) do
+  defp row_to_record(
+         %{"sumOpenInterest" => oi, "sumOpenInterestValue" => oiv, "timestamp" => ts},
+         symbol
+       ) do
     %{
       symbol: symbol,
       time: ms_to_dt(ts),

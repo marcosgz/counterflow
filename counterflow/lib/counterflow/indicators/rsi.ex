@@ -40,8 +40,12 @@ defmodule Counterflow.Indicators.RSI do
       rsi_series =
         Enum.zip_with(gains, losses, fn g, l ->
           cond do
-            l == 0 and g == 0 -> 50.0
-            l == 0 -> 100.0
+            l == 0 and g == 0 ->
+              50.0
+
+            l == 0 ->
+              100.0
+
             true ->
               rs = g / l
               100.0 - 100.0 / (1.0 + rs)
