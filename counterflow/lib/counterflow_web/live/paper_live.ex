@@ -104,7 +104,7 @@ defmodule CounterflowWeb.PaperLive do
           </div>
         </section>
 
-        <section class="cf-panel cf-panel-flush">
+        <section class="cf-panel">
           <div class="cf-panel-head">
             <span class="title"><span class="marker"></span>Open Positions</span>
           </div>
@@ -141,7 +141,7 @@ defmodule CounterflowWeb.PaperLive do
           </table>
         </section>
 
-        <section class="cf-panel cf-panel-flush">
+        <section class="cf-panel">
           <div class="cf-panel-head">
             <span class="title"><span class="marker short"></span>Recent Fills</span>
             <span class="cf-pill muted">last 20</span>

@@ -148,7 +148,7 @@ defmodule CounterflowWeb.SignalsLive do
               </div>
             </div>
           </div>
-          <div :if={Enum.empty?(@streams.signals.inserts)} class="cf-panel cf-panel-flush">
+          <div :if={Enum.empty?(@streams.signals.inserts)} class="cf-panel">
             <div class="cf-panel-body text-center py-8" style="color: var(--ink-3);">
               No signals match.
             </div>

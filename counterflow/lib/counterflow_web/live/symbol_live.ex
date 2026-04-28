@@ -304,7 +304,7 @@ defmodule CounterflowWeb.SymbolLive do
     <Layouts.shell flash={@flash} current_path={@current_path} symbol={@symbol}>
       <div class="px-3 sm:px-5 py-3 w-full space-y-3">
         <%!-- ── ticker strip ── --%>
-        <section class="cf-panel cf-panel-flush">
+        <section class="cf-panel">
           <div class="grid grid-cols-2 sm:grid-cols-5 lg:grid-cols-7 divide-x" style="border-color: var(--line);">
             <.ticker_cell label="Symbol" value={@symbol} highlight />
             <.ticker_cell label="Interval" value={@interval} />
@@ -320,7 +320,7 @@ defmodule CounterflowWeb.SymbolLive do
         <section class="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-3">
           <div class="space-y-3">
             <%!-- Price chart (TradingView) --%>
-            <div class="cf-panel cf-panel-flush">
+            <div class="cf-panel">
               <div class="cf-panel-head">
                 <span class="title"><span class="marker"></span>Price · TradingView</span>
                 <span class="cf-pill muted">BINANCE:{@symbol}.P</span>
@@ -336,7 +336,7 @@ defmodule CounterflowWeb.SymbolLive do
             </div>
 
             <%!-- Open Interest --%>
-            <div class="cf-panel cf-panel-flush">
+            <div class="cf-panel">
               <div class="cf-ind-head">
                 <span>Open Interest · 5m</span>
                 <span class="vals">
@@ -349,7 +349,7 @@ defmodule CounterflowWeb.SymbolLive do
             </div>
 
             <%!-- Smart Money Level (TF level history) --%>
-            <div class="cf-panel cf-panel-flush">
+            <div class="cf-panel">
               <div class="cf-ind-head">
                 <span>Smart Money Level · TF(trades)</span>
                 <span class="vals mono">
@@ -363,7 +363,7 @@ defmodule CounterflowWeb.SymbolLive do
             </div>
 
             <%!-- RSI with bands --%>
-            <div class="cf-panel cf-panel-flush">
+            <div class="cf-panel">
               <div class="cf-ind-head">
                 <span>RSI · 14</span>
                 <span class="vals mono">
@@ -377,7 +377,7 @@ defmodule CounterflowWeb.SymbolLive do
             </div>
 
             <%!-- Exponential (TF ratio bars) --%>
-            <div class="cf-panel cf-panel-flush">
+            <div class="cf-panel">
               <div class="cf-ind-head">
                 <span>Exponential · TF / avg(TF)</span>
                 <span class="vals mono"><span style="color: var(--ink-3);">acceleration on trades</span></span>
@@ -389,7 +389,7 @@ defmodule CounterflowWeb.SymbolLive do
 
             <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
               <%!-- L/S Ratio --%>
-              <div class="cf-panel cf-panel-flush">
+              <div class="cf-panel">
                 <div class="cf-ind-head">
                   <span>Long/Short Ratio · global</span>
                 </div>
@@ -399,7 +399,7 @@ defmodule CounterflowWeb.SymbolLive do
               </div>
 
               <%!-- Funding --%>
-              <div class="cf-panel cf-panel-flush">
+              <div class="cf-panel">
                 <div class="cf-ind-head">
                   <span>Funding Rate · 8h cycle</span>
                 </div>
@@ -413,7 +413,7 @@ defmodule CounterflowWeb.SymbolLive do
           <%!-- ── right rail: hunter matrix + level gauge + signal feed ── --%>
           <aside class="space-y-3">
             <%!-- Hunter matrix --%>
-            <div class="cf-panel cf-panel-flush">
+            <div class="cf-panel">
               <div class="cf-panel-head">
                 <span class="title"><span class="marker"></span>Smart Money Hunter</span>
                 <span class="cf-pill muted">{@symbol}</span>
@@ -454,7 +454,7 @@ defmodule CounterflowWeb.SymbolLive do
             </div>
 
             <%!-- Recent signals --%>
-            <div class="cf-panel cf-panel-flush">
+            <div class="cf-panel">
               <div class="cf-panel-head">
                 <span class="title"><span class="marker short"></span>Signals on {@symbol}</span>
                 <a href="/signals" class="cf-pill muted">all</a>

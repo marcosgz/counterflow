@@ -121,7 +121,7 @@ defmodule CounterflowWeb.OverviewLive do
         </section>
 
         <section class="grid grid-cols-1 lg:grid-cols-3 gap-3">
-          <div class="cf-panel cf-panel-flush col-span-1 lg:col-span-2">
+          <div class="cf-panel col-span-1 lg:col-span-2">
             <div class="cf-panel-head">
               <span class="title"><span class="marker"></span>Watchlist</span>
               <a href="/watchlist" class="cf-pill muted">manage →</a>
@@ -140,16 +140,15 @@ defmodule CounterflowWeb.OverviewLive do
             </div>
           </div>
 
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker warn"></span>Funding Extremes</span>
               <span class="cf-pill muted">8h cycle</span>
             </div>
-            <div class="cf-panel-body" style="padding: 0;">
-              <table class="cf-table">
-                <thead>
-                  <tr><th>Symbol</th><th class="num">Rate</th><th class="num">Mark</th></tr>
-                </thead>
+            <table class="cf-table">
+              <thead>
+                <tr><th>Symbol</th><th class="num">Rate</th><th class="num">Mark</th></tr>
+              </thead>
                 <tbody>
                   <tr :for={f <- @funding_top}>
                     <td><a href={~p"/symbol/#{f.symbol}"} style="color: var(--ink);">{f.symbol}</a></td>
@@ -170,12 +169,11 @@ defmodule CounterflowWeb.OverviewLive do
                   </tr>
                 </tbody>
               </table>
-            </div>
           </div>
         </section>
 
         <section class="grid grid-cols-1 lg:grid-cols-2 gap-3">
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker"></span>Live Signals</span>
               <a href="/signals" class="cf-pill muted">all →</a>
@@ -196,7 +194,7 @@ defmodule CounterflowWeb.OverviewLive do
             </div>
           </div>
 
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker short"></span>Liquidations Firehose</span>
               <span class="cf-pill muted">!forceOrder@arr</span>

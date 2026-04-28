@@ -251,19 +251,39 @@ html, body {
 .cf-status .warn { color: var(--warn); }
 .cf-status .err { color: var(--short); }
 
-/* Panels — the building block */
+/* ── Panels — composable building blocks ────────────────────
+ *
+ * The system: `.cf-panel` is JUST a bordered container with NO padding.
+ * Children own their own padding so any combination composes cleanly:
+ *
+ *   <div class="cf-panel">
+ *     <div class="cf-panel-head">…</div>      ← own padding 10/14
+ *     <div class="cf-panel-body">…</div>      ← own padding 14
+ *     <table class="cf-table">…</table>       ← own row padding 8/14
+ *     <div class="cf-form-row">…</div>        ← own padding 12/16
+ *   </div>
+ *
+ * Mix and match freely. The previous `.cf-panel-flush` modifier
+ * over-reached into children and broke; it's now a no-op alias kept
+ * only so existing markup still parses.
+ */
 .cf-panel {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 4px;
+  overflow: hidden;
 }
+.cf-panel + .cf-panel { margin-top: 12px; }
+.cf-panel-flush { /* legacy no-op */ }
 
 .cf-panel-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 8px 12px;
+  gap: 8px;
+  padding: 10px 14px;
   border-bottom: 1px solid var(--line);
+  background: var(--panel-2);
   font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
@@ -278,13 +298,17 @@ html, body {
   font-weight: 600;
 }
 .cf-panel-head .title .marker {
-  width: 4px; height: 12px; background: var(--long);
+  width: 4px; height: 12px; background: var(--long); flex-shrink: 0;
 }
 .cf-panel-head .title .marker.short { background: var(--short); }
 .cf-panel-head .title .marker.warn  { background: var(--warn); }
 
-.cf-panel-body { padding: 12px; }
-.cf-panel-flush > .cf-panel-body { padding: 0; }
+.cf-panel-body { padding: 14px; }
+.cf-panel-body + .cf-panel-body { padding-top: 0; }
+/* When a body sits directly above a table or form-rows, drop its bottom
+ * padding so the divider line lands flush. */
+.cf-panel-body:has(+ table.cf-table),
+.cf-panel-body:has(+ .cf-form-row) { padding-bottom: 10px; }
 
 /* KPI cards */
 .cf-kpi {

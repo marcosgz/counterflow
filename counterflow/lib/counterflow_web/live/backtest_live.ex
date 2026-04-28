@@ -114,7 +114,7 @@ defmodule CounterflowWeb.BacktestLive do
         </header>
 
         <%!-- Form --%>
-        <div class="cf-panel cf-panel-flush">
+        <div class="cf-panel">
           <div class="cf-panel-head">
             <span class="title"><span class="marker"></span>Configuration</span>
           </div>
@@ -159,14 +159,14 @@ defmodule CounterflowWeb.BacktestLive do
             <.kpi label="Max DD (R)" value={fmt(@result.summary.max_drawdown_r, 2)} variant="warn" />
           </section>
 
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker"></span>Replay context</span>
               <span class="cf-pill muted">{@result.replay.candles_processed} candles · {@result.replay.duration_ms}ms</span>
             </div>
           </div>
 
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker short"></span>Signals</span>
               <span class="cf-pill muted">{length(@result.signals)} total</span>
@@ -217,7 +217,7 @@ defmodule CounterflowWeb.BacktestLive do
           </div>
         </div>
 
-        <div :if={!@result and !@running?} class="cf-panel cf-panel-flush">
+        <div :if={!@result and !@running?} class="cf-panel">
           <div class="cf-panel-body text-center py-12 mono" style="color: var(--ink-3); font-size: 12px;">
             Pick a symbol, lookback window, and threshold above, then run.
             Use this to find a threshold where signal density × win-rate is acceptable

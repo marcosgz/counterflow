@@ -136,7 +136,7 @@ defmodule CounterflowWeb.SettingsLive do
         </div>
 
         <form phx-submit="save" class="space-y-3">
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker"></span>Strategy Engine</span>
             </div>
@@ -191,7 +191,7 @@ defmodule CounterflowWeb.SettingsLive do
             </div>
           </div>
 
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker warn"></span>Sides</span>
             </div>
@@ -215,7 +215,7 @@ defmodule CounterflowWeb.SettingsLive do
             </div>
           </div>
 
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker short"></span>Outputs</span>
               <span class="cf-pill muted">layered</span>
@@ -245,7 +245,7 @@ defmodule CounterflowWeb.SettingsLive do
             </div>
           </div>
 
-          <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel">
             <div class="cf-panel-head">
               <span class="title"><span class="marker"></span>Auto-tune</span>
               <span class="cf-pill muted">nightly @ 00:30 UTC</span>

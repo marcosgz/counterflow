@@ -105,7 +105,7 @@ defmodule CounterflowWeb.WatchlistLive do
         </header>
 
         <%!-- Auto-promotion control + candidates --%>
-        <div class="cf-panel cf-panel-flush">
+        <div class="cf-panel">
           <div class="cf-panel-head">
             <span class="title"><span class="marker warn"></span>Auto-promotion</span>
             <span class="flex items-center gap-2">
@@ -158,7 +158,7 @@ defmodule CounterflowWeb.WatchlistLive do
           </div>
         </div>
 
-        <div class="cf-panel cf-panel-flush">
+        <div class="cf-panel">
           <div class="cf-panel-head">
             <span class="title"><span class="marker"></span>Add Symbol</span>
             <span class="cf-pill muted">USDT-M futures</span>
@@ -176,7 +176,7 @@ defmodule CounterflowWeb.WatchlistLive do
           </form>
         </div>
 
-        <div class="cf-panel cf-panel-flush">
+        <div class="cf-panel">
           <table class="cf-table">
             <thead>
               <tr>

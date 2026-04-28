@@ -80,7 +80,7 @@ defmodule CounterflowWeb.DebugLive do
         </section>
 
         <%!-- Per-symbol table --%>
-        <div class="cf-panel cf-panel-flush">
+        <div class="cf-panel">
           <div class="cf-panel-head">
             <span class="title"><span class="marker"></span>Latest Evaluation per Symbol</span>
             <span class="cf-pill muted">refreshes on every closed candle</span>
@@ -143,7 +143,7 @@ defmodule CounterflowWeb.DebugLive do
           </div>
         </div>
 
-        <details class="cf-panel cf-panel-flush">
+        <details class="cf-panel">
           <summary class="cf-panel-head" style="cursor: pointer;">
             <span class="title"><span class="marker warn"></span>Reason legend</span>
           </summary>
