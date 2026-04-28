@@ -26,22 +26,58 @@ defmodule Counterflow.Strategy.Counterflow do
 
   @impl true
   def evaluate(%Input{} = input, opts \\ []) do
+    case evaluate_detailed(input, opts) do
+      {:signal, sig, _diag} -> {:signal, sig}
+      {:no_signal, _diag} -> :no_signal
+    end
+  end
+
+  @doc """
+  Verbose variant. Returns `{:signal, sig, diag}` or `{:no_signal, diag}`.
+  `diag` is a map suitable for `Counterflow.Strategy.Diagnostics.record/3`.
+  """
+  def evaluate_detailed(%Input{} = input, opts \\ []) do
     weights = Keyword.get(opts, :weights, @default_weights)
     threshold = Keyword.get(opts, :threshold, @default_threshold)
     ttl_minutes = Keyword.get(opts, :ttl_minutes, @default_ttl_minutes)
 
     case directional_bias(input) do
       :neutral ->
-        :no_signal
+        {:no_signal,
+         %{
+           reason: :neutral,
+           score: 0.0,
+           threshold: threshold,
+           components: %{},
+           side: nil,
+           candle_time: input.now,
+           candle_close: input.candle && input.candle.close
+         }}
 
       side ->
         components = score_components(input, side)
         score = weighted_sum(components, weights)
+        trend_ok? = trend_filter_ok?(input, side)
 
-        if score >= threshold and trend_filter_ok?(input, side) do
-          {:signal, build_signal(input, side, score, components, ttl_minutes)}
-        else
-          :no_signal
+        diag = %{
+          score: score,
+          threshold: threshold,
+          components: components,
+          side: side,
+          candle_time: input.now,
+          candle_close: input.candle && input.candle.close
+        }
+
+        cond do
+          score < threshold ->
+            {:no_signal, Map.put(diag, :reason, :below_threshold)}
+
+          not trend_ok? ->
+            {:no_signal, Map.put(diag, :reason, :trend_filter)}
+
+          true ->
+            sig = build_signal(input, side, score, components, ttl_minutes)
+            {:signal, sig, Map.put(diag, :reason, :emitted)}
         end
     end
   end

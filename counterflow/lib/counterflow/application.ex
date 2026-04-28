@@ -15,6 +15,7 @@ defmodule Counterflow.Application do
       {Finch, name: Counterflow.Finch},
       Counterflow.Risk.KillSwitch,
       Counterflow.Strategy.Cooldown,
+      Counterflow.Strategy.Diagnostics,
       Counterflow.Ingest.Supervisor,
       {Counterflow.Strategy.Pipeline, enabled?: Application.get_env(:counterflow, :strategy_pipeline_enabled?, true)},
       {Counterflow.Bridge.SignalToPaper, enabled?: Application.get_env(:counterflow, :paper_bridge_enabled?, true)},

@@ -20,7 +20,7 @@ defmodule Counterflow.Strategy.Pipeline do
   alias Counterflow.{Repo, Watchlist}
   alias Counterflow.Market.{Candle, OpenInterest, FundingRate, LongShortRatio, Liquidation}
   alias Counterflow.Strategy.Counterflow, as: CounterflowStrategy
-  alias Counterflow.Strategy.{Config, Cooldown, Dispatcher, Input}
+  alias Counterflow.Strategy.{Config, Cooldown, Diagnostics, Dispatcher, Input}
   alias Counterflow.Indicators.{BucketedForce, EMA, OIDelta, FundingZ, LiquidationPulse, LSRSignal}
   alias Phoenix.PubSub
 
@@ -105,30 +105,61 @@ defmodule Counterflow.Strategy.Pipeline do
     merged_opts = Keyword.merge(base_opts, Config.to_strategy_opts(cfg))
     input = build_input(sym, int, candle)
 
-    with :proceed <- Config.precheck(cfg, candle, input.tf),
-         {:signal, sig} <- CounterflowStrategy.evaluate(input, merged_opts),
-         true <- side_enabled?(cfg, sig.side),
-         :ok <- Cooldown.maybe_emit(sig.symbol, sig.side, sig.interval) do
-      Dispatcher.dispatch(sig)
-      :telemetry.execute([:counterflow, :strategy, :signal, :emitted], %{count: 1}, %{symbol: sig.symbol, side: sig.side})
-    else
-      :no_signal ->
-        :ok
+    case Config.precheck(cfg, candle, input.tf) do
+      {:skip, :disabled} ->
+        record(sym, int, %{
+          reason: :precheck_disabled,
+          score: nil,
+          threshold: nil,
+          components: %{},
+          side: nil,
+          candle_time: candle.time,
+          candle_close: candle.close
+        })
 
-      {:skip, reason} ->
-        :telemetry.execute([:counterflow, :strategy, :signal, :skipped], %{count: 1}, %{symbol: sym, reason: reason})
+      {:skip, :tf_below_min} ->
+        record(sym, int, %{
+          reason: :precheck_tf_low,
+          score: nil,
+          threshold: nil,
+          components: %{},
+          side: nil,
+          tf_level: input.tf && input.tf.level,
+          min_tf_level: cfg.min_tf_level,
+          candle_time: candle.time,
+          candle_close: candle.close
+        })
 
-      false ->
-        :telemetry.execute([:counterflow, :strategy, :signal, :side_disabled], %{count: 1}, %{symbol: sym})
+      :proceed ->
+        case CounterflowStrategy.evaluate_detailed(input, merged_opts) do
+          {:no_signal, diag} ->
+            record(sym, int, diag)
 
-      :cooldown ->
-        :telemetry.execute([:counterflow, :strategy, :signal, :cooldown], %{count: 1}, %{symbol: sym})
+          {:signal, sig, diag} ->
+            cond do
+              not side_enabled?(cfg, sig.side) ->
+                record(sym, int, Map.put(diag, :reason, :side_disabled))
+                :telemetry.execute([:counterflow, :strategy, :signal, :side_disabled], %{count: 1}, %{symbol: sym})
+
+              Cooldown.maybe_emit(sig.symbol, sig.side, sig.interval) == :cooldown ->
+                record(sym, int, Map.put(diag, :reason, :cooldown))
+                :telemetry.execute([:counterflow, :strategy, :signal, :cooldown], %{count: 1}, %{symbol: sym})
+
+              true ->
+                Dispatcher.dispatch(sig)
+                record(sym, int, Map.put(diag, :reason, :emitted) |> Map.put(:signal_id, sig.id))
+                :telemetry.execute([:counterflow, :strategy, :signal, :emitted], %{count: 1}, %{symbol: sig.symbol, side: sig.side})
+            end
+        end
     end
   rescue
     err ->
       Logger.warning("strategy pipeline error for #{sym}/#{int}: #{Exception.message(err)}")
+      record(sym, int, %{reason: :error, error: Exception.message(err), candle_time: candle.time, candle_close: candle.close})
       :telemetry.execute([:counterflow, :strategy, :error], %{count: 1}, %{symbol: sym, kind: err.__struct__})
   end
+
+  defp record(sym, int, payload), do: Diagnostics.record(sym, int, payload)
 
   defp side_enabled?(%{sides_enabled: m}, side) when is_map(m) do
     Map.get(m, to_string(side), true) || Map.get(m, side, true)
