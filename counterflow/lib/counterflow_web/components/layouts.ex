@@ -123,7 +123,8 @@ defmodule CounterflowWeb.Layouts do
   @doc "Three-way theme toggle: auto / light / dark."
   def theme_toggle(assigns) do
     ~H"""
-    <div class="cf-theme-toggle" role="group" aria-label="Theme">
+    <div id="cf-theme-toggle" phx-hook="ThemeToggle" phx-update="ignore"
+         class="cf-theme-toggle" role="group" aria-label="Theme">
       <button type="button" title="Auto" data-cf-theme="auto">
         <.icon name="hero-computer-desktop-micro" class="size-4" />
       </button>
