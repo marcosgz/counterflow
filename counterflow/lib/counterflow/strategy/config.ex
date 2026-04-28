@@ -26,11 +26,15 @@ defmodule Counterflow.Strategy.Config do
     field :enable_live, :boolean, default: false
     field :min_tf_level, :integer, default: 0
     field :sides_enabled, :map, default: %{"long" => true, "short" => true}
+    field :auto_tune_enabled, :boolean, default: false
+    field :last_auto_tune_at, :utc_datetime_usec
+    field :last_auto_tune_summary, :map
   end
 
   @castable ~w(symbol enabled interval weights threshold trend_profile
                cooldown_minutes max_leverage enable_alerts enable_paper
-               enable_live min_tf_level sides_enabled)a
+               enable_live min_tf_level sides_enabled auto_tune_enabled
+               last_auto_tune_at last_auto_tune_summary)a
 
   def changeset(cfg, attrs) do
     cfg
@@ -52,7 +56,10 @@ defmodule Counterflow.Strategy.Config do
     enable_paper: false,
     enable_live: false,
     min_tf_level: 0,
-    sides_enabled: %{"long" => true, "short" => true}
+    sides_enabled: %{"long" => true, "short" => true},
+    auto_tune_enabled: false,
+    last_auto_tune_at: nil,
+    last_auto_tune_summary: nil
   }
 
   @doc "Resolved config for a (symbol, interval) — defaults overridden by DB row."

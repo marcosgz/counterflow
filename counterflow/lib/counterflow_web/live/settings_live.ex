@@ -16,7 +16,8 @@ defmodule CounterflowWeb.SettingsLive do
      |> assign(:current_path, "/settings/#{symbol}")
      |> assign(:symbol, symbol)
      |> assign(:cfg, cfg)
-     |> assign(:saved, false)}
+     |> assign(:saved, false)
+     |> assign(:auto_tune_running?, false)}
   end
 
   def mount(_params, _session, socket) do
@@ -42,7 +43,8 @@ defmodule CounterflowWeb.SettingsLive do
       },
       enable_alerts: cast_bool(params["enable_alerts"]),
       enable_paper: cast_bool(params["enable_paper"]),
-      enable_live: cast_bool(params["enable_live"])
+      enable_live: cast_bool(params["enable_live"]),
+      auto_tune_enabled: cast_bool(params["auto_tune_enabled"])
     }
 
     case Config.upsert(socket.assigns.symbol, attrs) do
@@ -55,6 +57,30 @@ defmodule CounterflowWeb.SettingsLive do
       {:error, _cs} ->
         {:noreply, put_flash(socket, :error, "Failed to save config")}
     end
+  end
+
+  def handle_event("auto_tune_now", _params, socket) do
+    parent = self()
+    sym = socket.assigns.symbol
+
+    Task.start(fn ->
+      Counterflow.Backtest.AutoTuner.run_now(sym)
+      send(parent, :auto_tune_done)
+    end)
+
+    {:noreply,
+     socket
+     |> assign(:auto_tune_running?, true)
+     |> put_flash(:info, "Auto-tune sweep running for #{sym}…")}
+  end
+
+  @impl true
+  def handle_info(:auto_tune_done, socket) do
+    {:noreply,
+     socket
+     |> assign(:auto_tune_running?, false)
+     |> assign(:cfg, Config.for(socket.assigns.symbol))
+     |> put_flash(:info, "Auto-tune finished. Threshold updated if a winner was found.")}
   end
 
   defp cast_bool("true"), do: true
@@ -200,6 +226,41 @@ defmodule CounterflowWeb.SettingsLive do
             </div>
           </div>
 
+          <div class="cf-panel cf-panel-flush">
+            <div class="cf-panel-head">
+              <span class="title"><span class="marker"></span>Auto-tune</span>
+              <span class="cf-pill muted">nightly @ 00:30 UTC</span>
+            </div>
+            <div style="padding: 0;">
+              <div class="cf-form-row">
+                <div class="label">Enabled</div>
+                <label class="flex items-center gap-2 mono" style="font-size: 11px; color: var(--ink-2);">
+                  <input type="checkbox" name="cfg[auto_tune_enabled]" value="true"
+                         checked={@cfg.auto_tune_enabled} />
+                  Sweep thresholds nightly &amp; pick the best
+                </label>
+              </div>
+              <div class="cf-form-row">
+                <div class="label">Last run</div>
+                <div class="mono" style="font-size: 11px; color: var(--ink-3);">
+                  {format_last_tune(@cfg.last_auto_tune_at)}
+                </div>
+              </div>
+              <div :if={@cfg.last_auto_tune_summary} class="cf-form-row">
+                <div class="label">Last winner</div>
+                <div class="mono" style="font-size: 11px; color: var(--ink-2);">
+                  {format_winner(@cfg.last_auto_tune_summary)}
+                </div>
+              </div>
+              <div class="cf-form-row">
+                <div class="label">Run now</div>
+                <button type="button" phx-click="auto_tune_now" class="cf-btn" disabled={@auto_tune_running?}>
+                  <%= if @auto_tune_running?, do: "Running…", else: "Sweep now" %>
+                </button>
+              </div>
+            </div>
+          </div>
+
           <div class="flex justify-end">
             <button type="submit" class="cf-btn primary">Save</button>
           </div>
@@ -239,4 +300,29 @@ defmodule CounterflowWeb.SettingsLive do
   defp threshold_str(nil), do: ""
   defp threshold_str(%Decimal{} = d), do: Decimal.to_string(d, :normal)
   defp threshold_str(n) when is_number(n), do: to_string(n)
+
+  defp format_last_tune(nil), do: "never"
+
+  defp format_last_tune(%DateTime{} = dt) do
+    "#{Calendar.strftime(dt, "%Y-%m-%d %H:%M")} UTC"
+  end
+
+  defp format_last_tune(_), do: "—"
+
+  defp format_winner(%{"winner" => nil}), do: "no winner (no thresholds cleared)"
+
+  defp format_winner(%{"winner" => w}) when is_map(w) do
+    "threshold=#{w["threshold"]} · " <>
+      "signals=#{w["signals"]} · " <>
+      "win_rate=#{format_pct(w["win_rate"])} · " <>
+      "PF=#{format_n(w["profit_factor"])}"
+  end
+
+  defp format_winner(_), do: "—"
+
+  defp format_pct(n) when is_number(n), do: "#{Float.round(n * 100, 1)}%"
+  defp format_pct(_), do: "—"
+
+  defp format_n(n) when is_number(n), do: Float.round(n, 2)
+  defp format_n(_), do: "—"
 end
