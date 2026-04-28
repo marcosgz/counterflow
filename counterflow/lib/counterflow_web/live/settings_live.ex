@@ -24,7 +24,26 @@ defmodule CounterflowWeb.SettingsLive do
     {:ok,
      socket
      |> assign(:current_path, "/settings")
-     |> assign(:watchlist, Watchlist.all())}
+     |> assign(:watchlist, Watchlist.all())
+     |> assign(:telegram_configured?, Counterflow.Alerts.Telegram.configured?())
+     |> assign(:telegram_test_result, nil)}
+  end
+
+  @impl true
+  def handle_event("test_telegram", _params, socket) do
+    case Counterflow.Alerts.Telegram.test_message() do
+      {:ok, _} ->
+        {:noreply,
+         socket
+         |> assign(:telegram_test_result, :ok)
+         |> put_flash(:info, "Telegram test message sent.")}
+
+      {:error, reason} ->
+        {:noreply,
+         socket
+         |> assign(:telegram_test_result, {:error, reason})
+         |> put_flash(:error, "Telegram test failed: #{inspect(reason)}")}
+    end
   end
 
   @impl true
@@ -290,6 +309,38 @@ defmodule CounterflowWeb.SettingsLive do
           </a>
           <div :if={@watchlist == []} class="col-span-full text-center py-6" style="color: var(--ink-3);">
             <a href="/watchlist" style="color: var(--ink); text-decoration: underline;">Add symbols</a> to your watchlist first.
+          </div>
+        </div>
+
+        <%!-- ── Telegram sink ── --%>
+        <div class="cf-panel cf-panel-flush" style="max-width: 720px;">
+          <div class="cf-panel-head">
+            <span class="title"><span class="marker"></span>Telegram alerts</span>
+            <span class={"cf-pill " <> if(@telegram_configured?, do: "", else: "muted")}
+                  style={if(@telegram_configured?, do: "background: var(--long-bg); color: var(--long);", else: "")}>
+              {if @telegram_configured?, do: "CONFIGURED", else: "NOT CONFIGURED"}
+            </span>
+          </div>
+          <div class="cf-panel-body mono" style="font-size: 11px; color: var(--ink-2); line-height: 1.6;">
+            <p :if={!@telegram_configured?} style="color: var(--ink-3);">
+              Set <span class="cf-pill muted">TELEGRAM_BOT_TOKEN</span> and
+              <span class="cf-pill muted">TELEGRAM_CHAT_ID</span> in the environment, then restart.
+              Get a token from <a href="https://t.me/BotFather" target="_blank" style="color: var(--ink); text-decoration: underline;">@BotFather</a>;
+              get your chat id by messaging your bot then visiting
+              <span class="mono">api.telegram.org/bot&lt;TOKEN&gt;/getUpdates</span>.
+            </p>
+            <p :if={@telegram_configured?}>
+              Bot is configured. Every emitted signal automatically posts to your chat.
+            </p>
+            <div class="mt-3 flex gap-2 items-center">
+              <button type="button" phx-click="test_telegram" class="cf-btn" disabled={!@telegram_configured?}>
+                Send test message
+              </button>
+              <span :if={@telegram_test_result == :ok} style="color: var(--long);">✓ delivered</span>
+              <span :if={match?({:error, _}, @telegram_test_result)} style="color: var(--short);">
+                ✗ failed
+              </span>
+            </div>
           </div>
         </div>
       </div>

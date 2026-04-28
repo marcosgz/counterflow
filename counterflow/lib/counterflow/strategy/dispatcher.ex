@@ -37,7 +37,7 @@ defmodule Counterflow.Strategy.Dispatcher do
   end
 
   defp run_sinks(sig) do
-    sinks = Application.get_env(:counterflow, :alert_sinks, [])
+    sinks = active_sinks()
 
     Enum.each(sinks, fn sink ->
       Task.start(fn ->
@@ -48,5 +48,12 @@ defmodule Counterflow.Strategy.Dispatcher do
         end
       end)
     end)
+  end
+
+  # Sinks come from explicit config OR are auto-enabled when credentials exist.
+  defp active_sinks do
+    explicit = Application.get_env(:counterflow, :alert_sinks, [])
+    auto = if Counterflow.Alerts.Telegram.configured?(), do: [Counterflow.Alerts.Telegram], else: []
+    Enum.uniq(explicit ++ auto)
   end
 end
