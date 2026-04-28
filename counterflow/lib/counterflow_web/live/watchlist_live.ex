@@ -1,13 +1,18 @@
 defmodule CounterflowWeb.WatchlistLive do
-  @moduledoc "Phase 5 watchlist management — pin/unpin/add/remove."
+  @moduledoc "Trader-grade watchlist management with dense table layout."
 
   use CounterflowWeb, :live_view
 
+  alias CounterflowWeb.Layouts
   alias Counterflow.{Watchlist, Watchlist.Manager}
 
   @impl true
   def mount(_params, _session, socket) do
-    {:ok, assign(socket, watchlist: Watchlist.all(), new_symbol: "")}
+    {:ok,
+     socket
+     |> assign(:current_path, "/watchlist")
+     |> assign(:watchlist, Watchlist.all())
+     |> assign(:new_symbol, "")}
   end
 
   @impl true
@@ -23,11 +28,7 @@ defmodule CounterflowWeb.WatchlistLive do
 
   def handle_event("add", %{"symbol" => s}, socket) do
     s = String.upcase(s)
-
-    if String.length(s) > 0 do
-      Manager.add(s)
-    end
-
+    if String.length(s) > 0, do: Manager.add(s)
     {:noreply, assign(socket, watchlist: Watchlist.all(), new_symbol: "")}
   end
 
@@ -39,76 +40,76 @@ defmodule CounterflowWeb.WatchlistLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="p-6 max-w-4xl mx-auto space-y-6">
-      <header class="flex items-baseline justify-between">
-        <h1 class="text-2xl font-bold">Watchlist</h1>
-        <nav class="text-sm space-x-4">
-          <.link navigate={~p"/"} class="underline">Overview</.link>
-          <.link navigate={~p"/signals"} class="underline">Signals</.link>
-        </nav>
-      </header>
+    <Layouts.shell flash={@flash} current_path={@current_path}>
+      <div class="p-6 max-w-5xl mx-auto space-y-4">
+        <header class="flex items-center justify-between">
+          <h1 class="cf-section-title" style="font-size: 14px; letter-spacing: 0.18em; color: var(--ink);">WATCHLIST</h1>
+          <span class="cf-pill muted">{length(@watchlist)} symbols</span>
+        </header>
 
-      <form phx-submit="add" class="flex gap-2">
-        <input
-          type="text"
-          name="symbol"
-          placeholder="BTCUSDT"
-          value={@new_symbol}
-          class="border rounded px-3 py-1 font-mono"
-        />
-        <button type="submit" class="px-4 py-1 bg-emerald-600 text-white rounded">
-          Add
-        </button>
-      </form>
+        <div class="cf-panel cf-panel-flush">
+          <div class="cf-panel-head">
+            <span class="title"><span class="marker"></span>Add Symbol</span>
+            <span class="cf-pill muted">USDT-M futures</span>
+          </div>
+          <form phx-submit="add" class="cf-panel-body flex gap-2">
+            <input
+              type="text"
+              name="symbol"
+              placeholder="BTCUSDT"
+              value={@new_symbol}
+              class="cf-input grow"
+              autocomplete="off"
+            />
+            <button type="submit" class="cf-btn primary">Add Symbol</button>
+          </form>
+        </div>
 
-      <table class="w-full text-sm font-mono">
-        <thead class="bg-gray-100 dark:bg-gray-800">
-          <tr>
-            <th class="text-left p-2">Symbol</th>
-            <th class="text-left p-2">Pinned</th>
-            <th class="text-left p-2">Promoted by</th>
-            <th class="text-left p-2">Added</th>
-            <th class="p-2">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr :for={w <- @watchlist} class="border-t">
-            <td class="p-2">
-              <.link navigate={~p"/symbol/#{w.symbol}"} class="underline">{w.symbol}</.link>
-            </td>
-            <td class="p-2">{if w.pinned, do: "⭐", else: ""}</td>
-            <td class="p-2">{w.promoted_by || "-"}</td>
-            <td class="p-2">{Calendar.strftime(w.added_at, "%Y-%m-%d %H:%M")}</td>
-            <td class="p-2 space-x-2">
-              <button
-                :if={!w.pinned}
-                phx-click="pin"
-                phx-value-symbol={w.symbol}
-                class="text-yellow-600 hover:underline"
-              >
-                Pin
-              </button>
-              <button
-                :if={w.pinned}
-                phx-click="unpin"
-                phx-value-symbol={w.symbol}
-                class="text-gray-600 hover:underline"
-              >
-                Unpin
-              </button>
-              <button
-                phx-click="drop"
-                phx-value-symbol={w.symbol}
-                data-confirm={"Remove #{w.symbol}?"}
-                class="text-rose-600 hover:underline"
-              >
-                Remove
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
+        <div class="cf-panel cf-panel-flush">
+          <table class="cf-table">
+            <thead>
+              <tr>
+                <th>Symbol</th>
+                <th>Pinned</th>
+                <th>Promoted by</th>
+                <th>Added</th>
+                <th class="num">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr :for={w <- @watchlist}>
+                <td>
+                  <a href={~p"/symbol/#{w.symbol}"} style="color: var(--ink); font-weight: 600;">{w.symbol}</a>
+                </td>
+                <td>
+                  <span :if={w.pinned} class="cf-pill warn">PINNED</span>
+                  <span :if={!w.pinned} style="color: var(--ink-3);">—</span>
+                </td>
+                <td>
+                  <span class="cf-pill muted">{w.promoted_by || "auto"}</span>
+                </td>
+                <td style="color: var(--ink-3);">{Calendar.strftime(w.added_at, "%Y-%m-%d %H:%M")}</td>
+                <td class="num">
+                  <div class="flex gap-2 justify-end">
+                    <button :if={!w.pinned} phx-click="pin" phx-value-symbol={w.symbol} class="cf-btn">Pin</button>
+                    <button :if={w.pinned} phx-click="unpin" phx-value-symbol={w.symbol} class="cf-btn">Unpin</button>
+                    <a href={~p"/settings/#{w.symbol}"} class="cf-btn">Tune</a>
+                    <button phx-click="drop" phx-value-symbol={w.symbol}
+                            data-confirm={"Remove " <> w.symbol <> "?"}
+                            class="cf-btn danger">Remove</button>
+                  </div>
+                </td>
+              </tr>
+              <tr :if={@watchlist == []}>
+                <td colspan="5" class="text-center py-6" style="color: var(--ink-3);">
+                  No symbols yet — add one above.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </Layouts.shell>
     """
   end
 end

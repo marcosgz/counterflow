@@ -26,12 +26,13 @@ import {hooks as colocatedHooks} from "phoenix-colocated/counterflow"
 import topbar from "../vendor/topbar"
 import {TradingViewWidget} from "./hooks/tradingview"
 import {ChartJSPanel} from "./hooks/chart_js"
+import {StatusClock} from "./hooks/status_clock"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, TradingViewWidget, ChartJSPanel},
+  hooks: {...colocatedHooks, TradingViewWidget, ChartJSPanel, StatusClock},
 })
 
 // Show progress bar on live navigation and form submits

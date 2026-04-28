@@ -4,9 +4,15 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="csrf-token" content={get_csrf_token()} />
-    <.live_title default="Counterflow" suffix=" · Phoenix Framework">
+    <.live_title default="Counterflow">
       {assigns[:page_title]}
     </.live_title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&display=swap"
+    />
     <link phx-track-static rel="stylesheet" href={~p"/assets/css/app.css"} />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js">
     </script>
@@ -14,22 +20,33 @@
     <script defer phx-track-static type="text/javascript" src={~p"/assets/js/app.js"}>
     </script>
     <script>
+      // Three-way theme: "auto" (default, follows OS), "dark", "light".
+      // Stored in localStorage.cf_theme; absence = auto. Auto removes the
+      // data-theme attribute so prefers-color-scheme handles the swap.
       (() => {
-        const setTheme = (theme) => {
-          if (theme === "system") {
-            localStorage.removeItem("phx:theme");
+        const KEY = "cf_theme";
+        const apply = (mode) => {
+          if (mode === "auto" || !mode) {
             document.documentElement.removeAttribute("data-theme");
           } else {
-            localStorage.setItem("phx:theme", theme);
-            document.documentElement.setAttribute("data-theme", theme);
+            document.documentElement.setAttribute("data-theme", mode);
           }
         };
-        if (!document.documentElement.hasAttribute("data-theme")) {
-          setTheme(localStorage.getItem("phx:theme") || "system");
-        }
-        window.addEventListener("storage", (e) => e.key === "phx:theme" && setTheme(e.newValue || "system"));
-        
-        window.addEventListener("phx:set-theme", (e) => setTheme(e.target.dataset.phxTheme));
+        const stored = localStorage.getItem(KEY);
+        apply(stored || "auto");
+
+        // Reapply when stored value changes in another tab
+        window.addEventListener("storage", (e) => {
+          if (e.key === KEY) apply(e.newValue || "auto");
+        });
+
+        // Phoenix bridge: pages dispatch `phx:set-theme` with detail = mode
+        window.addEventListener("phx:set-theme", (e) => {
+          const mode = (e.detail && e.detail.mode) || e.target.dataset.cfTheme || "auto";
+          if (mode === "auto") localStorage.removeItem(KEY);
+          else localStorage.setItem(KEY, mode);
+          apply(mode);
+        });
       })();
     </script>
   </head>

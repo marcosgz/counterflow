@@ -1,10 +1,11 @@
 defmodule CounterflowWeb.SignalsLive do
-  @moduledoc "Phase 5 signals feed."
+  @moduledoc "Trader-grade signals feed with filter + outcome readout."
 
   use CounterflowWeb, :live_view
 
   import Ecto.Query
 
+  alias CounterflowWeb.Layouts
   alias Counterflow.{Repo, Strategy.Signal}
   alias Phoenix.PubSub
 
@@ -14,102 +15,169 @@ defmodule CounterflowWeb.SignalsLive do
   def mount(_params, _session, socket) do
     if connected?(socket), do: PubSub.subscribe(Counterflow.PubSub, "signals:new")
 
-    socket =
-      socket
-      |> assign(:filter_symbol, "")
-      |> stream(:signals, load_signals(""), at: 0, limit: @page_size)
-
-    {:ok, socket}
+    {:ok,
+     socket
+     |> assign(:current_path, "/signals")
+     |> assign(:filter_symbol, "")
+     |> assign(:filter_side, "")
+     |> stream(:signals, load_signals("", ""), at: 0, limit: @page_size)}
   end
 
   @impl true
-  def handle_event("filter", %{"symbol" => sym}, socket) do
+  def handle_event("filter", %{"symbol" => sym} = params, socket) do
     sym = String.upcase(sym)
+    side = Map.get(params, "side", "")
 
     {:noreply,
      socket
      |> assign(:filter_symbol, sym)
-     |> stream(:signals, load_signals(sym), reset: true, limit: @page_size)}
+     |> assign(:filter_side, side)
+     |> stream(:signals, load_signals(sym, side), reset: true, limit: @page_size)}
   end
 
   @impl true
   def handle_info({:signal, sig}, socket) do
-    if socket.assigns.filter_symbol == "" or sig.symbol == socket.assigns.filter_symbol do
+    visible? =
+      (socket.assigns.filter_symbol == "" or sig.symbol == socket.assigns.filter_symbol) and
+        (socket.assigns.filter_side == "" or sig.side == socket.assigns.filter_side)
+
+    if visible? do
       {:noreply, stream_insert(socket, :signals, sig, at: 0, limit: @page_size)}
     else
       {:noreply, socket}
     end
   end
 
-  defp load_signals("") do
-    Repo.all(from s in Signal, order_by: [desc: s.generated_at], limit: @page_size)
-  end
-
-  defp load_signals(sym) do
+  defp load_signals(sym, side) do
     Repo.all(
       from s in Signal,
-        where: s.symbol == ^sym,
+        where: ^build_filters(sym, side),
         order_by: [desc: s.generated_at],
         limit: @page_size
     )
   end
 
+  defp build_filters(sym, side) do
+    base = true
+
+    base
+    |> maybe_filter_symbol(sym)
+    |> maybe_filter_side(side)
+  end
+
+  defp maybe_filter_symbol(q, ""), do: q
+  defp maybe_filter_symbol(_q, sym), do: dynamic([s], s.symbol == ^sym)
+  defp maybe_filter_side(q, ""), do: q
+
+  defp maybe_filter_side(q, side) do
+    case q do
+      true -> dynamic([s], s.side == ^side)
+      existing -> dynamic([s], ^existing and s.side == ^side)
+    end
+  end
+
   @impl true
   def render(assigns) do
     ~H"""
-    <div class="p-6 max-w-5xl mx-auto space-y-4">
-      <header class="flex items-baseline justify-between">
-        <h1 class="text-2xl font-bold">Signals</h1>
-        <nav class="text-sm space-x-4">
-          <.link navigate={~p"/"} class="underline">Overview</.link>
-          <.link navigate={~p"/watchlist"} class="underline">Watchlist</.link>
-        </nav>
-      </header>
+    <Layouts.shell flash={@flash} current_path={@current_path}>
+      <div class="p-6 max-w-6xl mx-auto space-y-4">
+        <header class="flex items-center justify-between">
+          <h1 class="cf-section-title" style="font-size: 14px; letter-spacing: 0.18em; color: var(--ink);">SIGNALS</h1>
+          <span class="cf-pill muted">live</span>
+        </header>
 
-      <form phx-change="filter">
-        <input
-          type="text"
-          name="symbol"
-          value={@filter_symbol}
-          placeholder="filter by symbol e.g. BTCUSDT"
-          class="border rounded px-3 py-1 font-mono w-72"
-        />
-      </form>
+        <form phx-change="filter" class="flex gap-2 items-center">
+          <input
+            type="text"
+            name="symbol"
+            value={@filter_symbol}
+            placeholder="filter symbol e.g. BTCUSDT"
+            class="cf-input"
+            autocomplete="off"
+          />
+          <select name="side" class="cf-select">
+            <option value="" selected={@filter_side == ""}>any side</option>
+            <option value="long" selected={@filter_side == "long"}>long</option>
+            <option value="short" selected={@filter_side == "short"}>short</option>
+          </select>
+        </form>
 
-      <div id="signals-feed" phx-update="stream" class="space-y-1 text-sm font-mono">
-        <div
-          :for={{dom_id, s} <- @streams.signals}
-          id={dom_id}
-          class={["p-3 rounded border-l-4", side_color(s.side)]}
-        >
-          <div class="flex justify-between">
-            <span class="font-bold">
-              <.link navigate={~p"/symbol/#{s.symbol}"} class="underline">{s.symbol}</.link>
-              <span class="uppercase">{s.side}</span> @ {s.price} ({s.interval})
-            </span>
-            <span class="text-gray-500">
-              {Calendar.strftime(s.generated_at, "%Y-%m-%d %H:%M:%S")}
-            </span>
+        <div id="signals-feed" phx-update="stream" class="space-y-2">
+          <div :for={{dom_id, s} <- @streams.signals} id={dom_id} class="cf-panel">
+            <div class="cf-panel-body" style="padding: 12px;">
+              <div class="flex items-center justify-between flex-wrap gap-2">
+                <div class="flex items-center gap-3 mono">
+                  <span class="cf-pill" style={side_pill_style(s.side)}>{String.upcase(s.side)}</span>
+                  <a href={~p"/symbol/#{s.symbol}"} style="color: var(--ink); font-weight: 700; font-size: 13px;">{s.symbol}</a>
+                  <span style="color: var(--ink-3); font-size: 11px;">{s.interval}</span>
+                </div>
+                <div class="mono" style="color: var(--ink-3); font-size: 11px;">
+                  {Calendar.strftime(s.generated_at, "%Y-%m-%d %H:%M:%S")} UTC
+                </div>
+              </div>
+
+              <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-3 mono" style="font-size: 11px;">
+                <div>
+                  <div style="font-size: 9px; letter-spacing: 0.12em; color: var(--ink-3); text-transform: uppercase;">price</div>
+                  <div style="color: var(--ink); font-size: 13px;">{s.price}</div>
+                </div>
+                <div>
+                  <div style="font-size: 9px; letter-spacing: 0.12em; color: var(--ink-3); text-transform: uppercase;">score</div>
+                  <div style="color: var(--ink); font-size: 13px;">{format_score(s.score)}</div>
+                </div>
+                <div>
+                  <div style="font-size: 9px; letter-spacing: 0.12em; color: var(--ink-3); text-transform: uppercase;">leverage</div>
+                  <div style="color: var(--ink); font-size: 13px;">{s.leverage}×</div>
+                </div>
+                <div>
+                  <div style="font-size: 9px; letter-spacing: 0.12em; color: var(--ink-3); text-transform: uppercase;">SL → TP1 → TP2</div>
+                  <div style="color: var(--ink-2); font-size: 11px;">
+                    <span style="color: var(--short);">{s.sl}</span> →
+                    <span style="color: var(--long);">{s.tp1}</span> →
+                    <span style="color: var(--long);">{s.tp2}</span>
+                  </div>
+                </div>
+                <div>
+                  <div style="font-size: 9px; letter-spacing: 0.12em; color: var(--ink-3); text-transform: uppercase;">outcome</div>
+                  <div>{outcome_pill(s.outcome)}</div>
+                </div>
+              </div>
+
+              <div :if={(s.notes || []) != []} class="mt-2 flex gap-1 flex-wrap">
+                <span :for={note <- s.notes} class="cf-pill muted">{note}</span>
+              </div>
+            </div>
           </div>
-          <div class="text-xs text-gray-500">
-            score={s.score} · lev={s.leverage}× ·
-            sl={s.sl} · tp1={s.tp1} · tp2={s.tp2}
-          </div>
-          <div class="text-xs">
-            <%= for note <- (s.notes || []) do %>
-              <span class="inline-block bg-gray-100 dark:bg-gray-800 px-2 py-0.5 mr-1 rounded">
-                {note}
-              </span>
-            <% end %>
+          <div :if={Enum.empty?(@streams.signals.inserts)} class="cf-panel cf-panel-flush">
+            <div class="cf-panel-body text-center py-8" style="color: var(--ink-3);">
+              No signals match.
+            </div>
           </div>
         </div>
-        <div :if={@streams.signals == []} class="text-gray-500">No signals match.</div>
       </div>
-    </div>
+    </Layouts.shell>
     """
   end
 
-  defp side_color("long"), do: "border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/10"
-  defp side_color("short"), do: "border-rose-500 bg-rose-50/50 dark:bg-rose-900/10"
-  defp side_color(_), do: "border-gray-300"
+  defp format_score(nil), do: "—"
+  defp format_score(%Decimal{} = d), do: Decimal.to_string(d, :normal)
+  defp format_score(n), do: to_string(n)
+
+  defp side_pill_style("long"), do: "background: var(--long-bg); color: var(--long);"
+  defp side_pill_style("short"), do: "background: var(--short-bg); color: var(--short);"
+  defp side_pill_style(_), do: "background: var(--line); color: var(--ink-3);"
+
+  defp outcome_pill(nil), do: Phoenix.HTML.raw(~S|<span class="cf-pill muted">PENDING</span>|)
+
+  defp outcome_pill(%{"hit_tp2" => true}),
+    do: Phoenix.HTML.raw(~S|<span class="cf-pill" style="background: var(--long-bg); color: var(--long);">TP2 · +2R</span>|)
+
+  defp outcome_pill(%{"hit_tp1" => true}),
+    do: Phoenix.HTML.raw(~S|<span class="cf-pill" style="background: var(--long-bg); color: var(--long);">TP1 · +1R</span>|)
+
+  defp outcome_pill(%{"hit_sl" => true}),
+    do: Phoenix.HTML.raw(~S|<span class="cf-pill" style="background: var(--short-bg); color: var(--short);">SL · −1R</span>|)
+
+  defp outcome_pill(_),
+    do: Phoenix.HTML.raw(~S|<span class="cf-pill muted">EXPIRED</span>|)
 end

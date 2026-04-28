@@ -1,152 +1,137 @@
 defmodule CounterflowWeb.Layouts do
   @moduledoc """
-  This module holds layouts and related functionality
-  used by your application.
+  Layout components shared across LiveViews. Defines a single `shell/1`
+  component that owns the chrome (left rail, top bar, status strip) so
+  each page only declares its own content area.
   """
+
   use CounterflowWeb, :html
 
-  # Embed all files in layouts/* within this module.
-  # The default root.html.heex file contains the HTML
-  # skeleton of your application, namely HTML headers
-  # and other static content.
   embed_templates "layouts/*"
 
-  @doc """
-  Renders your app layout.
-
-  This function is typically invoked from every template,
-  and it often contains your application menu, sidebar,
-  or similar.
-
-  ## Examples
-
-      <Layouts.app flash={@flash}>
-        <h1>Content</h1>
-      </Layouts.app>
-
-  """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
-
-  attr :current_scope, :map,
-    default: nil,
-    doc: "the current [scope](https://hexdocs.pm/phoenix/scopes.html)"
-
+  attr :flash, :map, default: %{}
+  attr :current_path, :string, default: "/"
+  attr :symbol, :string, default: nil
+  attr :ws_status, :atom, default: :ok
   slot :inner_block, required: true
 
-  def app(assigns) do
-    ~H"""
-    <header class="navbar px-4 sm:px-6 lg:px-8">
-      <div class="flex-1">
-        <a href="/" class="flex-1 flex w-fit items-center gap-2">
-          <img src={~p"/images/logo.svg"} width="36" />
-          <span class="text-sm font-semibold">v{Application.spec(:phoenix, :vsn)}</span>
-        </a>
-      </div>
-      <div class="flex-none">
-        <ul class="flex flex-column px-1 space-x-4 items-center">
-          <li>
-            <a href="https://phoenixframework.org/" class="btn btn-ghost">Website</a>
-          </li>
-          <li>
-            <a href="https://github.com/phoenixframework/phoenix" class="btn btn-ghost">GitHub</a>
-          </li>
-          <li>
-            <.theme_toggle />
-          </li>
-          <li>
-            <a href="https://hexdocs.pm/phoenix/overview.html" class="btn btn-primary">
-              Get Started <span aria-hidden="true">&rarr;</span>
-            </a>
-          </li>
-        </ul>
-      </div>
-    </header>
-
-    <main class="px-4 py-20 sm:px-6 lg:px-8">
-      <div class="mx-auto max-w-2xl space-y-4">
-        {render_slot(@inner_block)}
-      </div>
-    </main>
-
-    <.flash_group flash={@flash} />
-    """
-  end
-
   @doc """
-  Shows the flash group with standard titles and content.
+  Persistent application chrome. Renders:
 
-  ## Examples
+    * left icon rail with primary navigation,
+    * top bar with breadcrumb / brand / theme toggle,
+    * scrollable main pane (the slot),
+    * bottom status strip with clock + ws health.
+  """
+  def shell(assigns) do
+    ~H"""
+    <div class="cf-app">
+      <aside class="cf-rail">
+        <a class="cf-rail-link" href="/" title="Counterflow"
+           style="background: var(--bg); color: var(--ink); margin-bottom: 4px;">
+          <span class="mono" style="font-weight: 700; font-size: 14px;">C</span>
+        </a>
+        <.rail_link current={@current_path} href="/" icon="hero-squares-2x2-mini" label="Overview" />
+        <.rail_link current={@current_path} href="/watchlist" icon="hero-rectangle-stack-mini" label="Watchlist" />
+        <.rail_link current={@current_path} href="/signals" icon="hero-bolt-mini" label="Signals" />
+        <.rail_link current={@current_path} href="/paper" icon="hero-banknotes-mini" label="Paper" />
+        <div class="grow"></div>
+        <.rail_link current={@current_path} href="/settings" icon="hero-cog-6-tooth-mini" label="Settings" />
+      </aside>
+
+      <header class="cf-topbar">
+        <span class="brand"><span class="dot"></span>COUNTERFLOW</span>
+
+        <div class="hidden md:flex items-center gap-2 mono" style="font-size: 11px;">
+          <span class="crumb">{section_label(@current_path)}</span>
+          <span :if={@symbol} class="crumb-sep">/</span>
+          <span :if={@symbol} class="crumb" style="color: var(--ink);">{@symbol}</span>
+        </div>
+
+        <div class="grow"></div>
+
+        <div class="hidden sm:flex items-center gap-3 mono" style="font-size: 11px;">
+          <span style="color: var(--ink-3);">WS</span>
+          <span class={ws_class(@ws_status)}>{ws_label(@ws_status)}</span>
+        </div>
+
+        <.theme_toggle />
+      </header>
+
+      <main class="cf-main">
+        {render_slot(@inner_block)}
+      </main>
+
+      <footer class="cf-status">
+        <div class="flex items-center gap-4">
+          <span>v0.1 · phase 8</span>
+          <span class="hidden md:inline">elixir {System.version()} · otp {:erlang.system_info(:otp_release)}</span>
+        </div>
+        <div id="status-clock" phx-hook="StatusClock" class="ok mono">--:--:-- UTC</div>
+      </footer>
 
       <.flash_group flash={@flash} />
-  """
-  attr :flash, :map, required: true, doc: "the map of flash messages"
-  attr :id, :string, default: "flash-group", doc: "the optional id of flash container"
-
-  def flash_group(assigns) do
-    ~H"""
-    <div id={@id} aria-live="polite">
-      <.flash kind={:info} flash={@flash} />
-      <.flash kind={:error} flash={@flash} />
-
-      <.flash
-        id="client-error"
-        kind={:error}
-        title="We can't find the internet"
-        phx-disconnected={show(".phx-client-error #client-error") |> JS.remove_attribute("hidden")}
-        phx-connected={hide("#client-error") |> JS.set_attribute({"hidden", ""})}
-        hidden
-      >
-        Attempting to reconnect
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
-      </.flash>
-
-      <.flash
-        id="server-error"
-        kind={:error}
-        title="Something went wrong!"
-        phx-disconnected={show(".phx-server-error #server-error") |> JS.remove_attribute("hidden")}
-        phx-connected={hide("#server-error") |> JS.set_attribute({"hidden", ""})}
-        hidden
-      >
-        Attempting to reconnect
-        <.icon name="hero-arrow-path" class="ml-1 size-3 motion-safe:animate-spin" />
-      </.flash>
     </div>
     """
   end
 
-  @doc """
-  Provides dark vs light theme toggle based on themes defined in app.css.
+  attr :current, :string, default: "/"
+  attr :href, :string, required: true
+  attr :icon, :string, required: true
+  attr :label, :string, required: true
 
-  See <head> in root.html.heex which applies the theme before page load.
-  """
+  defp rail_link(assigns) do
+    ~H"""
+    <a href={@href} title={@label}
+       class={"cf-rail-link" <> if(active?(@current, @href), do: " active", else: "")}>
+      <.icon name={@icon} class="size-5" />
+    </a>
+    """
+  end
+
+  defp active?("/", "/"), do: true
+  defp active?(_, "/"), do: false
+  defp active?(current, href), do: String.starts_with?(current, href)
+
+  defp section_label("/"), do: "OVERVIEW"
+  defp section_label("/watchlist"), do: "WATCHLIST"
+  defp section_label("/signals" <> _), do: "SIGNALS"
+  defp section_label("/symbol/" <> _), do: "SYMBOL"
+  defp section_label("/settings" <> _), do: "SETTINGS"
+  defp section_label("/paper"), do: "PAPER"
+  defp section_label(_), do: ""
+
+  defp ws_class(:ok), do: "ok"
+  defp ws_class(:warn), do: "warn"
+  defp ws_class(_), do: "err"
+  defp ws_label(:ok), do: "LIVE"
+  defp ws_label(:warn), do: "DEGRADED"
+  defp ws_label(_), do: "OFFLINE"
+
+  attr :flash, :map, required: true
+  attr :id, :string, default: "flash-group"
+
+  def flash_group(assigns) do
+    ~H"""
+    <div id={@id} aria-live="polite" class="fixed bottom-10 right-4 z-50 space-y-2">
+      <.flash kind={:info} flash={@flash} />
+      <.flash kind={:error} flash={@flash} />
+    </div>
+    """
+  end
+
+  @doc "Three-way theme toggle: auto / light / dark."
   def theme_toggle(assigns) do
     ~H"""
-    <div class="card relative flex flex-row items-center border-2 border-base-300 bg-base-300 rounded-full">
-      <div class="absolute w-1/3 h-full rounded-full border-1 border-base-200 bg-base-100 brightness-200 left-0 [[data-theme=light]_&]:left-1/3 [[data-theme=dark]_&]:left-2/3 transition-[left]" />
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="system"
-      >
-        <.icon name="hero-computer-desktop-micro" class="size-4 opacity-75 hover:opacity-100" />
+    <div class="cf-theme-toggle" role="group" aria-label="Theme">
+      <button title="Auto" phx-click={JS.dispatch("phx:set-theme", detail: %{mode: "auto"})}>
+        <.icon name="hero-computer-desktop-micro" class="size-4" />
       </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="light"
-      >
-        <.icon name="hero-sun-micro" class="size-4 opacity-75 hover:opacity-100" />
+      <button title="Light" phx-click={JS.dispatch("phx:set-theme", detail: %{mode: "light"})}>
+        <.icon name="hero-sun-micro" class="size-4" />
       </button>
-
-      <button
-        class="flex p-2 cursor-pointer w-1/3"
-        phx-click={JS.dispatch("phx:set-theme")}
-        data-phx-theme="dark"
-      >
-        <.icon name="hero-moon-micro" class="size-4 opacity-75 hover:opacity-100" />
+      <button title="Dark" phx-click={JS.dispatch("phx:set-theme", detail: %{mode: "dark"})}>
+        <.icon name="hero-moon-micro" class="size-4" />
       </button>
     </div>
     """
