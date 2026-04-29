@@ -36,6 +36,7 @@ defmodule CounterflowWeb.Layouts do
         <.rail_link current={@current_path} href="/signals" icon="hero-bolt-mini" label="Signals" />
         <.rail_link current={@current_path} href="/paper" icon="hero-banknotes-mini" label="Paper" />
         <.rail_link current={@current_path} href="/backtest" icon="hero-clock-mini" label="Backtest" />
+        <.rail_link current={@current_path} href="/audit" icon="hero-document-text-mini" label="Audit log" />
         <.rail_link current={@current_path} href="/debug" icon="hero-bug-ant-mini" label="Strategy debug" />
         <div class="grow"></div>
         <.rail_link current={@current_path} href="/settings" icon="hero-cog-6-tooth-mini" label="Settings" />
@@ -102,6 +103,8 @@ defmodule CounterflowWeb.Layouts do
   defp section_label("/settings" <> _), do: "SETTINGS"
   defp section_label("/paper"), do: "PAPER"
   defp section_label("/debug"), do: "DEBUG"
+  defp section_label("/backtest"), do: "BACKTEST"
+  defp section_label("/audit"), do: "AUDIT"
   defp section_label(_), do: ""
 
   defp ws_class(:ok), do: "ok"
