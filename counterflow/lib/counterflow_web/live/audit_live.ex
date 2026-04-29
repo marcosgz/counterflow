@@ -39,6 +39,9 @@ defmodule CounterflowWeb.AuditLive do
     {:ok,
      socket
      |> assign(:current_path, "/audit")
+     |> assign(:digest_running?, false)
+     |> assign(:llm_provider, Counterflow.LLM.provider_label())
+     |> assign(:llm_configured?, Counterflow.LLM.configured?())
      |> load_events()}
   end
 
@@ -46,7 +49,34 @@ defmodule CounterflowWeb.AuditLive do
   def handle_info({:signal, _sig}, socket), do: {:noreply, load_events(socket)}
   def handle_info({:auto_tune, _sym, _summary}, socket), do: {:noreply, load_events(socket)}
   def handle_info(:refresh, socket), do: {:noreply, load_events(socket)}
+  def handle_info({:digest_done, result}, socket) do
+    msg =
+      case result do
+        {:ok, _text} -> {:info, "Digest sent."}
+        {:error, reason} -> {:error, "Digest failed: #{inspect(reason)}"}
+      end
+
+    {:noreply,
+     socket
+     |> assign(:digest_running?, false)
+     |> put_flash(elem(msg, 0), elem(msg, 1))}
+  end
   def handle_info(_msg, socket), do: {:noreply, socket}
+
+  @impl true
+  def handle_event("send_digest", _params, socket) do
+    parent = self()
+
+    Task.start(fn ->
+      result = Counterflow.Reports.WeeklyDigest.send_now()
+      send(parent, {:digest_done, result})
+    end)
+
+    {:noreply,
+     socket
+     |> assign(:digest_running?, true)
+     |> put_flash(:info, "Generating weekly digest…")}
+  end
 
   defp load_events(socket) do
     cutoff = DateTime.add(DateTime.utc_now(), -@window_hours * 3600, :second)
@@ -212,11 +242,20 @@ defmodule CounterflowWeb.AuditLive do
     ~H"""
     <Layouts.shell flash={@flash} current_path={@current_path}>
       <div class="p-6 w-full space-y-4">
-        <header class="flex items-center justify-between">
+        <header class="flex items-center justify-between flex-wrap gap-2">
           <h1 class="cf-section-title" style="font-size: 14px; letter-spacing: 0.18em; color: var(--ink);">
             AUDIT · <span class="mono" style="color: var(--ink-3);">last {window_hours_label()} hours</span>
           </h1>
-          <span class="cf-pill muted">{length(@events)} events</span>
+          <div class="flex items-center gap-2">
+            <span class="cf-pill muted">{length(@events)} events</span>
+            <span class={"cf-pill " <> if(@llm_configured?, do: "", else: "muted")}
+                  style={if(@llm_configured?, do: "background: var(--long-bg); color: var(--long);", else: "")}>
+              LLM · {@llm_provider}
+            </span>
+            <button phx-click="send_digest" class="cf-btn primary" disabled={@digest_running? or !@llm_configured?}>
+              <%= if @digest_running?, do: "Generating…", else: "Send weekly digest" %>
+            </button>
+          </div>
         </header>
 
         <section class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">

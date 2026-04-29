@@ -25,6 +25,7 @@ defmodule Counterflow.Application do
       {Counterflow.Watchlist.Promoter, enabled?: Application.get_env(:counterflow, :promoter_enabled?, true)},
       {Counterflow.Strategy.OutcomeEvaluator, enabled?: Application.get_env(:counterflow, :outcome_evaluator_enabled?, true)},
       {Counterflow.Backtest.AutoTuner, enabled?: Application.get_env(:counterflow, :auto_tuner_enabled?, true)},
+      {Counterflow.Reports.Scheduler, enabled?: Application.get_env(:counterflow, :digest_scheduler_enabled?, true)},
       CounterflowWeb.Endpoint
     ]
 
