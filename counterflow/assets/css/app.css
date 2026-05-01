@@ -564,6 +564,18 @@ html, body {
 .cf-ind-head .vals .pos { color: var(--long); }
 .cf-ind-head .vals .neg { color: var(--short); }
 
+/* Resizable TradingView container — drag the bottom-right grip to resize.
+ * Browser-native resize handle; the widget iframe inside fills 100%/100%. */
+.cf-tv-resizable {
+  position: relative;
+  width: 100%;
+  height: 460px;
+  min-height: 260px;
+  max-height: 1200px;
+  overflow: hidden;
+  resize: vertical;
+}
+
 /* Charts */
 .cf-chart-wrap {
   position: relative;

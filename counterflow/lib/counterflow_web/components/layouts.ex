@@ -13,6 +13,9 @@ defmodule CounterflowWeb.Layouts do
   attr :current_path, :string, default: "/"
   attr :symbol, :string, default: nil
   attr :ws_status, :atom, default: :ok
+  attr :symbols, :list, default: [], doc: "available symbols for the symbol dropdown"
+  attr :interval, :string, default: nil
+  attr :intervals, :list, default: ["1m", "5m", "15m", "30m", "1h", "4h", "1d"]
   slot :inner_block, required: true
 
   @doc """
@@ -45,11 +48,31 @@ defmodule CounterflowWeb.Layouts do
       <header class="cf-topbar">
         <span class="brand"><span class="dot"></span>COUNTERFLOW</span>
 
-        <div class="hidden md:flex items-center gap-2 mono" style="font-size: 11px;">
-          <span class="crumb">{section_label(@current_path)}</span>
-          <span :if={@symbol} class="crumb-sep">/</span>
-          <span :if={@symbol} class="crumb" style="color: var(--ink);">{@symbol}</span>
-        </div>
+        <nav class="hidden md:flex items-center gap-2 mono" style="font-size: 11px;" aria-label="Breadcrumb">
+          <a href={section_href(@current_path)} class="crumb">{section_label(@current_path)}</a>
+
+          <%= if @symbol do %>
+            <span class="crumb-sep">/</span>
+            <%= if @symbols && @symbols != [] do %>
+              <form phx-change="cf_breadcrumb_symbol">
+                <select name="symbol" class="cf-select" style="font-size: 11px; padding: 2px 6px; height: 24px;">
+                  <option :for={s <- @symbols} value={s} selected={s == @symbol}>{s}</option>
+                </select>
+              </form>
+            <% else %>
+              <span class="crumb" style="color: var(--ink);">{@symbol}</span>
+            <% end %>
+          <% end %>
+
+          <%= if @interval do %>
+            <span class="crumb-sep">·</span>
+            <form phx-change="cf_breadcrumb_interval">
+              <select name="interval" class="cf-select" style="font-size: 11px; padding: 2px 6px; height: 24px;">
+                <option :for={i <- @intervals} value={i} selected={i == @interval}>{i}</option>
+              </select>
+            </form>
+          <% end %>
+        </nav>
 
         <div class="grow"></div>
 
@@ -106,6 +129,20 @@ defmodule CounterflowWeb.Layouts do
   defp section_label("/backtest"), do: "BACKTEST"
   defp section_label("/audit"), do: "AUDIT"
   defp section_label(_), do: ""
+
+  # Breadcrumb anchor: every section label points back to its index page so
+  # the user can jump out of a detail view without hunting through the rail.
+  defp section_href("/"), do: "/"
+  defp section_href("/watchlist"), do: "/watchlist"
+  defp section_href("/signals" <> _), do: "/signals"
+  defp section_href("/symbol/" <> _), do: "/watchlist"
+  defp section_href("/settings/" <> _), do: "/settings"
+  defp section_href("/settings"), do: "/settings"
+  defp section_href("/paper"), do: "/paper"
+  defp section_href("/debug"), do: "/debug"
+  defp section_href("/backtest"), do: "/backtest"
+  defp section_href("/audit"), do: "/audit"
+  defp section_href(_), do: "/"
 
   defp ws_class(:ok), do: "ok"
   defp ws_class(:warn), do: "warn"

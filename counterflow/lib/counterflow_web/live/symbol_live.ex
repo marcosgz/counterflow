@@ -35,8 +35,8 @@ defmodule CounterflowWeb.SymbolLive do
   @history 60
 
   @impl true
-  def mount(%{"symbol" => symbol}, _session, socket) do
-    interval = "1m"
+  def mount(%{"symbol" => symbol} = params, _session, socket) do
+    interval = sanitize_interval(params["interval"]) || "1m"
 
     if connected?(socket) do
       PubSub.subscribe(Counterflow.PubSub, SymbolWorker.topic(symbol, interval))
@@ -52,11 +52,60 @@ defmodule CounterflowWeb.SymbolLive do
      |> assign(:current_path, "/symbol/#{symbol}")
      |> assign(:symbol, symbol)
      |> assign(:interval, interval)
+     |> assign(:watchlist_symbols, watchlist_symbols())
      |> assign(:candles, candles)
      |> assign(:signals, recent_signals(symbol))
      |> assign(:hunter, hunter_matrix(symbol))
      |> assign(:level_pct, level_pct(symbol, interval))}
   end
+
+  @impl true
+  def handle_params(%{"symbol" => symbol} = params, _uri, socket) do
+    interval = sanitize_interval(params["interval"]) || "1m"
+
+    cond do
+      symbol != socket.assigns.symbol ->
+        # full nav to a new symbol — push live navigation will mount fresh
+        {:noreply, socket}
+
+      interval != socket.assigns.interval ->
+        # interval-only switch: resubscribe + reload
+        if connected?(socket) do
+          PubSub.unsubscribe(Counterflow.PubSub, SymbolWorker.topic(symbol, socket.assigns.interval))
+          PubSub.subscribe(Counterflow.PubSub, SymbolWorker.topic(symbol, interval))
+        end
+
+        candles = load_candles(symbol, interval)
+
+        socket =
+          socket
+          |> assign(:interval, interval)
+          |> assign(:candles, candles)
+          |> assign(:level_pct, level_pct(symbol, interval))
+          |> push_chart_data()
+
+        {:noreply, socket}
+
+      true ->
+        {:noreply, socket}
+    end
+  end
+
+  @impl true
+  def handle_event("cf_breadcrumb_symbol", %{"symbol" => sym}, socket) do
+    {:noreply, push_navigate(socket, to: ~p"/symbol/#{sym}?interval=#{socket.assigns.interval}")}
+  end
+
+  def handle_event("cf_breadcrumb_interval", %{"interval" => interval}, socket) do
+    {:noreply, push_patch(socket, to: ~p"/symbol/#{socket.assigns.symbol}?interval=#{interval}")}
+  end
+
+  defp watchlist_symbols do
+    Counterflow.Watchlist.all() |> Enum.map(& &1.symbol)
+  end
+
+  defp sanitize_interval(i) when i in ["1m", "5m", "15m", "30m", "1h", "4h", "1d"], do: i
+  defp sanitize_interval(_), do: nil
 
   @impl true
   def handle_info(:hydrate_charts, socket), do: {:noreply, push_chart_data(socket)}
@@ -301,7 +350,8 @@ defmodule CounterflowWeb.SymbolLive do
   @impl true
   def render(assigns) do
     ~H"""
-    <Layouts.shell flash={@flash} current_path={@current_path} symbol={@symbol}>
+    <Layouts.shell flash={@flash} current_path={@current_path} symbol={@symbol}
+                   symbols={@watchlist_symbols} interval={@interval}>
       <div class="px-3 sm:px-5 py-3 w-full space-y-3">
         <%!-- ── ticker strip ── --%>
         <section class="cf-panel">
@@ -319,20 +369,22 @@ defmodule CounterflowWeb.SymbolLive do
         <%!-- ── main two-column layout ── --%>
         <section class="grid grid-cols-1 xl:grid-cols-[1fr_320px] gap-3">
           <div class="space-y-3">
-            <%!-- Price chart (TradingView) --%>
+            <%!-- Price chart (TradingView) — resizable via the bottom-right grip --%>
             <div class="cf-panel">
               <div class="cf-panel-head">
                 <span class="title"><span class="marker"></span>Price · TradingView</span>
-                <span class="cf-pill muted">BINANCE:{@symbol}.P</span>
+                <span class="cf-pill muted">BINANCE:{@symbol}.P · drag bottom-right to resize</span>
               </div>
-              <div
-                id={"tv-#{@symbol}"}
-                phx-hook="TradingViewWidget"
-                phx-update="ignore"
-                data-symbol={@symbol}
-                data-interval="5"
-                style="width: 100%; height: 460px;"
-              ></div>
+              <div class="cf-tv-resizable">
+                <div
+                  id={"tv-#{@symbol}-#{@interval}"}
+                  phx-hook="TradingViewWidget"
+                  phx-update="ignore"
+                  data-symbol={@symbol}
+                  data-interval={tv_interval(@interval)}
+                  style="width: 100%; height: 100%;"
+                ></div>
+              </div>
             </div>
 
             <%!-- Open Interest --%>
@@ -558,6 +610,16 @@ defmodule CounterflowWeb.SymbolLive do
   defp format_score(nil), do: "—"
   defp format_score(%Decimal{} = d), do: Decimal.to_string(d, :normal)
   defp format_score(n), do: to_string(n)
+
+  # Map our interval strings to TradingView's resolution param.
+  defp tv_interval("1m"), do: "1"
+  defp tv_interval("5m"), do: "5"
+  defp tv_interval("15m"), do: "15"
+  defp tv_interval("30m"), do: "30"
+  defp tv_interval("1h"), do: "60"
+  defp tv_interval("4h"), do: "240"
+  defp tv_interval("1d"), do: "D"
+  defp tv_interval(_), do: "5"
 
   defp side_pill_style("long"), do: "background: var(--long-bg); color: var(--long);"
   defp side_pill_style("short"), do: "background: var(--short-bg); color: var(--short);"
