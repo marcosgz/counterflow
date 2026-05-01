@@ -78,9 +78,25 @@ defmodule Counterflow.Broker.Paper.Matcher do
     if triggered?(order, candle) do
       fill_price = compute_fill_price(order, candle)
       Paper.fill_pending(order, fill_price, candle.time)
+      notify_fill(order, fill_price)
       handle_post_fill(order)
     end
   end
+
+  defp notify_fill(%PaperOrder{intent: intent, symbol: sym, side: side, qty: qty}, fill_price)
+       when intent in ["sl", "tp1", "tp2"] do
+    Task.start(fn ->
+      Counterflow.Alerts.Telegram.send_fill(%{
+        symbol: sym,
+        intent: intent,
+        side: side,
+        price: fill_price,
+        qty: qty
+      })
+    end)
+  end
+
+  defp notify_fill(_, _), do: :ok
 
   defp triggered?(%PaperOrder{type: "LIMIT", side: "BUY", price: p}, c),
     do: gte?(p, c.low)

@@ -38,6 +38,23 @@ defmodule Counterflow.Alerts.Telegram do
     end
   end
 
+  @doc """
+  Notify on a paper bracket fill (TP1 / TP2 / SL). Quiet if Telegram
+  isn't configured — we don't want to crash the matcher.
+  """
+  @spec send_fill(map()) :: {:ok, map()} | {:error, term()} | :skip
+  def send_fill(%{symbol: sym, intent: intent, side: order_side, price: price, qty: qty} = _fill) do
+    case credentials() do
+      {:ok, token, chat_id} ->
+        post(token, chat_id, format_fill(sym, intent, order_side, price, qty))
+
+      _ ->
+        :skip
+    end
+  end
+
+  def send_fill(_), do: :skip
+
   @spec configured?() :: boolean()
   def configured? do
     case credentials() do
@@ -107,6 +124,22 @@ defmodule Counterflow.Alerts.Telegram do
     do: Enum.join(notes, " · ")
 
   defp notes_line(_), do: "no notable components"
+
+  defp format_fill(symbol, intent, side, price, qty) do
+    {emoji, label} =
+      case intent do
+        "tp1" -> {"🎯", "TP1 hit (+1R, 50%)"}
+        "tp2" -> {"💰", "TP2 hit (+2R, 50%)"}
+        "sl" -> {"🛑", "SL hit (-1R)"}
+        _ -> {"➡️", String.upcase(to_string(intent || "fill"))}
+      end
+
+    """
+    #{emoji} *#{escape(label)}* `#{escape(symbol)}`
+
+    `#{escape(side)}` `#{format_decimal(qty)}` @ `#{format_decimal(price)}`
+    """
+  end
 
   defp format_decimal(nil), do: "—"
   defp format_decimal(%Decimal{} = d), do: Decimal.to_string(d, :normal)
