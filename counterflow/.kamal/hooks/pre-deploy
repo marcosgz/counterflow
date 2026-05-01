@@ -1,0 +1,8 @@
+#!/bin/sh
+# Run database migrations before the new container takes traffic.
+# Kamal copies hooks to the server and runs them with KAMAL_* env vars set.
+set -e
+
+echo "→ Running Ecto migrations…"
+kamal app exec --reuse './bin/migrate'
+echo "✓ Migrations complete"

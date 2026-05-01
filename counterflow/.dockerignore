@@ -1,0 +1,13 @@
+_build
+deps
+test
+priv/static/assets
+.elixir_ls
+.git
+.gitignore
+.kamal
+.dockerignore
+Dockerfile
+README.md
+docs
+*.log

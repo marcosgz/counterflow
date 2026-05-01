@@ -1,0 +1,4 @@
+#!/bin/sh
+# Boots the Phoenix server. Kamal pre-deploy hook handles migrations.
+cd -P -- "$(dirname -- "$0")/.."
+PHX_SERVER=true exec ./bin/counterflow start

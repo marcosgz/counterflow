@@ -1,0 +1,101 @@
+# Kamal 2 deployment for Counterflow.
+#
+# Run from the counterflow/ directory:
+#   kamal setup       # one-time: install kamal-proxy + run accessories
+#   kamal deploy      # subsequent deploys
+#   kamal app logs -f
+#   kamal rollback
+#
+# Required local files (NOT committed):
+#   .kamal/secrets    — see .kamal/secrets.example for the schema
+
+service: counterflow
+
+# Image — set IMAGE_REPO env var or replace below with your registry path.
+image: <%= ENV["KAMAL_REGISTRY_USERNAME"] %>/counterflow
+
+servers:
+  web:
+    hosts:
+      - <%= ENV["DEPLOY_HOST"] || "counterflow.marcosz.com.br" %>
+    options:
+      # Counterflow holds many WS connections; bump open-file limit.
+      ulimit: "nofile=65535:65535"
+
+# Built-in proxy (replaces Traefik in Kamal 2). Handles SSL via Let's Encrypt.
+proxy:
+  ssl: true
+  host: counterflow.marcosz.com.br
+  app_port: 4000
+  healthcheck:
+    path: /login
+    interval: 5
+    timeout: 3
+
+# Image registry — Docker Hub by default. For GHCR set server: ghcr.io and
+# the username/password to your GitHub user + a PAT with package:write.
+registry:
+  username:
+    - KAMAL_REGISTRY_USERNAME
+  password:
+    - KAMAL_REGISTRY_PASSWORD
+
+builder:
+  arch: amd64
+  args:
+    ELIXIR_VERSION: 1.19.5
+    OTP_VERSION: 28.5
+
+# Environment passed to the app container. `clear` is plaintext + committed,
+# `secret` is loaded from .kamal/secrets at deploy time and never persisted.
+env:
+  clear:
+    PHX_HOST: counterflow.marcosz.com.br
+    PORT: "4000"
+    POOL_SIZE: "10"
+    PHX_SERVER: "true"
+  secret:
+    - SECRET_KEY_BASE
+    - DATABASE_URL
+    - COUNTERFLOW_OWNER_EMAIL
+    - COUNTERFLOW_OWNER_PASSWORD
+    - COUNTERFLOW_TELEGRAM_BOT_TOKEN
+    - COUNTERFLOW_TELEGRAM_CHAT_ID
+    - COUNTERFLOW_LLM_PROVIDER
+    - COUNTERFLOW_LLM_API_KEY
+    - COUNTERFLOW_LLM_MODEL
+    # Optional — only needed for Phase 8a/8b activation:
+    - BINANCE_TESTNET_API_KEY
+    - BINANCE_TESTNET_API_SECRET
+    - BINANCE_API_KEY
+    - BINANCE_API_SECRET
+
+# Run migrations before traffic is routed to the new container.
+asset_path: /app/priv/static
+boot:
+  limit: 10
+  wait: 2
+
+# Ecto migrations on each deploy via Kamal's pre-deploy hook (see
+# .kamal/hooks/pre-deploy below) OR via direct `kamal app exec`.
+# We choose the latter for explicit visibility:
+#   kamal app exec './bin/migrate'
+
+# Accessories: TimescaleDB on the same host. For separate DB host, point
+# `host` at it and remove the entry from `roles`. Persistent volume keeps
+# data across redeploys.
+accessories:
+  db:
+    image: timescale/timescaledb:latest-pg16
+    host: <%= ENV["DEPLOY_HOST"] || "counterflow.marcosz.com.br" %>
+    port: "127.0.0.1:5432:5432"
+    env:
+      clear:
+        POSTGRES_DB: counterflow_prod
+        POSTGRES_USER: counterflow
+      secret:
+        - POSTGRES_PASSWORD
+    files:
+      - .kamal/db_init.sql:/docker-entrypoint-initdb.d/01_init.sql
+    directories:
+      - data:/var/lib/postgresql/data

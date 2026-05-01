@@ -3,3 +3,6 @@ bot/
 IDEA.md
 *.log
 .env
+counterflow/.kamal/secrets
+counterflow/.kamal/secrets.*
+!counterflow/.kamal/secrets.example
