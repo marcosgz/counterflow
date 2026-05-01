@@ -564,6 +564,53 @@ html, body {
 .cf-ind-head .vals .pos { color: var(--long); }
 .cf-ind-head .vals .neg { color: var(--short); }
 
+/* Dense per-symbol panel table (homepage). Borrows look from
+ * the Encryptos painel: tiny font, sticky header, color-shaded cells. */
+.cf-panel-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink);
+}
+.cf-panel-table th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-2);
+  color: var(--ink-3);
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.cf-panel-table th.grp {
+  text-align: center;
+  border-left: 1px solid var(--line-2);
+  border-right: 1px solid var(--line-2);
+  background: var(--panel);
+  color: var(--ink-2);
+  letter-spacing: 0.16em;
+}
+.cf-panel-table th.sub { font-size: 9px; padding: 3px 5px; }
+.cf-panel-table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+.cf-panel-table td.idx { color: var(--ink-mute); width: 38px; }
+.cf-panel-table td.cell {
+  text-align: center;
+  padding: 4px 5px;
+  font-variant-numeric: tabular-nums;
+  min-width: 36px;
+}
+.cf-panel-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.cf-panel-table tbody tr:hover td { background: var(--panel-2); }
+
 /* Resizable TradingView container — drag the bottom-right grip to resize.
  * Browser-native resize handle; the widget iframe inside fills 100%/100%. */
 .cf-tv-resizable {

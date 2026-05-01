@@ -34,7 +34,8 @@ defmodule CounterflowWeb.Layouts do
            style="background: var(--bg); color: var(--ink); margin-bottom: 4px;">
           <span class="mono" style="font-weight: 700; font-size: 14px;">C</span>
         </a>
-        <.rail_link current={@current_path} href="/" icon="hero-squares-2x2-mini" label="Overview" />
+        <.rail_link current={@current_path} href="/" icon="hero-table-cells-mini" label="Panel · timeframe" />
+        <.rail_link current={@current_path} href="/overview" icon="hero-squares-2x2-mini" label="Overview" />
         <.rail_link current={@current_path} href="/watchlist" icon="hero-rectangle-stack-mini" label="Watchlist" />
         <.rail_link current={@current_path} href="/signals" icon="hero-bolt-mini" label="Signals" />
         <.rail_link current={@current_path} href="/paper" icon="hero-banknotes-mini" label="Paper" />
@@ -123,6 +124,7 @@ defmodule CounterflowWeb.Layouts do
   defp section_label("/watchlist"), do: "WATCHLIST"
   defp section_label("/signals" <> _), do: "SIGNALS"
   defp section_label("/symbol/" <> _), do: "SYMBOL"
+  defp section_label("/overview"), do: "OVERVIEW"
   defp section_label("/settings" <> _), do: "SETTINGS"
   defp section_label("/paper"), do: "PAPER"
   defp section_label("/debug"), do: "DEBUG"

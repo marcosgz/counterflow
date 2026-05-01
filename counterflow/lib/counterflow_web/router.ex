@@ -33,7 +33,8 @@ defmodule CounterflowWeb.Router do
     pipe_through [:browser, :require_user]
 
     live_session :authenticated, on_mount: {CounterflowWeb.Auth, :ensure_authenticated} do
-      live "/", OverviewLive
+      live "/", PanelLive
+      live "/overview", OverviewLive
       live "/watchlist", WatchlistLive
       live "/signals", SignalsLive
       live "/symbol/:symbol", SymbolLive

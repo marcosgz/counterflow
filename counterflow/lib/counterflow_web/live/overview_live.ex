@@ -26,7 +26,7 @@ defmodule CounterflowWeb.OverviewLive do
 
     {:ok,
      socket
-     |> assign(:current_path, "/")
+     |> assign(:current_path, "/overview")
      |> assign(:watchlist, Watchlist.all())
      |> assign(:funding_top, top_funding(:positive))
      |> assign(:funding_bottom, top_funding(:negative))
