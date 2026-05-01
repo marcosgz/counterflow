@@ -32,7 +32,8 @@ config :counterflow,
   auto_tuner_enabled?: false,
   promoter_enabled?: false,
   auto_promote_enabled?: false,
-  digest_scheduler_enabled?: false
+  digest_scheduler_enabled?: false,
+  backfill_on_promote?: false
 
 # Print only warnings and errors during test
 config :logger, level: :warning

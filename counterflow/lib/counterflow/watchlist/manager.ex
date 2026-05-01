@@ -91,6 +91,12 @@ defmodule Counterflow.Watchlist.Manager do
   end
 
   defp start_symbol(symbol, intervals) do
+    # Async backfill so the symbol has 7d of history immediately, instead
+    # of waiting for ws candles to accumulate.
+    if Application.get_env(:counterflow, :backfill_on_promote?, true) do
+      Counterflow.Ingest.Backfill.start_async(symbol, intervals: intervals, days: 7)
+    end
+
     Enum.each(intervals, fn interval ->
       worker_spec = {SymbolWorker, symbol: symbol, interval: interval}
       ws_spec = {Kline, symbol: symbol, interval: interval}
