@@ -8,6 +8,7 @@ defmodule CounterflowWeb.Router do
     plug :put_root_layout, html: {CounterflowWeb.Layouts, :root}
     plug :protect_from_forgery
     plug :put_secure_browser_headers
+    plug CounterflowWeb.Plugs.BasicAuth
   end
 
   pipeline :api do
