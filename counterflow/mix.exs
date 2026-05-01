@@ -68,7 +68,8 @@ defmodule Counterflow.MixProject do
       {:req, "~> 0.5"},
       {:finch, "~> 0.18"},
       {:decimal, "~> 2.1"},
-      {:oban, "~> 2.18"}
+      {:oban, "~> 2.18"},
+      {:bcrypt_elixir, "~> 3.1"}
     ]
   end
 

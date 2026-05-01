@@ -12,8 +12,10 @@ defmodule Counterflow.Strategy.Config do
   import Ecto.Changeset
   alias Counterflow.Repo
 
-  @primary_key {:symbol, :string, autogenerate: false}
+  @primary_key false
   schema "symbol_strategy_config" do
+    field :user_id, :integer, primary_key: true
+    field :symbol, :string, primary_key: true
     field :enabled, :boolean, default: true
     field :interval, :string, default: "5m"
     field :weights, :map
@@ -31,7 +33,7 @@ defmodule Counterflow.Strategy.Config do
     field :last_auto_tune_summary, :map
   end
 
-  @castable ~w(symbol enabled interval weights threshold trend_profile
+  @castable ~w(user_id symbol enabled interval weights threshold trend_profile
                cooldown_minutes max_leverage enable_alerts enable_paper
                enable_live min_tf_level sides_enabled auto_tune_enabled
                last_auto_tune_at last_auto_tune_summary)a
@@ -39,7 +41,7 @@ defmodule Counterflow.Strategy.Config do
   def changeset(cfg, attrs) do
     cfg
     |> cast(attrs, @castable)
-    |> validate_required([:symbol])
+    |> validate_required([:user_id, :symbol])
     |> validate_inclusion(:trend_profile, 1..3)
     |> validate_number(:max_leverage, greater_than: 0, less_than_or_equal_to: 10)
   end
@@ -63,25 +65,32 @@ defmodule Counterflow.Strategy.Config do
   }
 
   @doc "Resolved config for a (symbol, interval) — defaults overridden by DB row."
-  @spec for(String.t(), String.t()) :: map()
-  def for(symbol, interval \\ "5m") do
-    case Repo.get(__MODULE__, symbol) do
-      nil ->
-        Map.put(@default, :symbol, symbol) |> Map.put(:interval, interval)
+  def for(symbol, interval \\ "5m", user_id \\ nil) do
+    uid = user_id || Counterflow.Accounts.owner_id()
 
+    base = Map.put(@default, :symbol, symbol) |> Map.put(:interval, interval)
+
+    case uid && Repo.get_by(__MODULE__, user_id: uid, symbol: symbol) do
       %__MODULE__{} = row ->
         @default
         |> Map.merge(Map.from_struct(row) |> Map.drop([:__meta__]))
         |> Map.put(:symbol, symbol)
+
+      _ ->
+        base
     end
   end
 
   @doc "Upsert a per-symbol config from a plain map of attrs."
-  def upsert(symbol, attrs) do
-    base = Repo.get(__MODULE__, symbol) || %__MODULE__{symbol: symbol}
+  def upsert(symbol, attrs, user_id \\ nil) do
+    uid = user_id || Counterflow.Accounts.owner_id() || raise "no owner user; create one first"
+
+    base =
+      Repo.get_by(__MODULE__, user_id: uid, symbol: symbol) ||
+        %__MODULE__{user_id: uid, symbol: symbol}
 
     base
-    |> changeset(Map.put(attrs, :symbol, symbol))
+    |> changeset(attrs |> Map.put(:user_id, uid) |> Map.put(:symbol, symbol))
     |> Repo.insert_or_update()
   end
 

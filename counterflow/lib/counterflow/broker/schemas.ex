@@ -4,6 +4,7 @@ defmodule Counterflow.Broker.PaperAccount do
 
   @primary_key {:id, :string, autogenerate: false}
   schema "paper_accounts" do
+    field :user_id, :integer
     field :initial_balance, :decimal
     field :balance, :decimal
     field :config, :map, default: %{}
@@ -12,8 +13,8 @@ defmodule Counterflow.Broker.PaperAccount do
 
   def changeset(acc, attrs) do
     acc
-    |> cast(attrs, [:id, :initial_balance, :balance, :config])
-    |> validate_required([:id, :initial_balance, :balance])
+    |> cast(attrs, [:id, :user_id, :initial_balance, :balance, :config])
+    |> validate_required([:id, :user_id, :initial_balance, :balance])
   end
 end
 

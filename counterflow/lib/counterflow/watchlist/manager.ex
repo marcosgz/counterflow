@@ -57,7 +57,11 @@ defmodule Counterflow.Watchlist.Manager do
 
   def handle_call({:drop, symbol}, _from, state) do
     stop_symbol(symbol, state.intervals)
-    Repo.delete_all(from w in WatchlistEntry, where: w.symbol == ^symbol)
+
+    if uid = Counterflow.Accounts.owner_id() do
+      Repo.delete_all(from w in WatchlistEntry, where: w.user_id == ^uid and w.symbol == ^symbol)
+    end
+
     refresh_pipeline()
     {:reply, :ok, %{state | symbols: List.delete(state.symbols, symbol)}}
   end
@@ -69,25 +73,41 @@ defmodule Counterflow.Watchlist.Manager do
   # ── helpers ─────────────────────────────────────────────────
 
   defp load_symbols do
-    Repo.all(
-      from w in WatchlistEntry, order_by: [desc: w.pinned, asc: w.symbol], select: w.symbol
-    )
+    case Counterflow.Accounts.owner_id() do
+      nil ->
+        []
+
+      uid ->
+        Repo.all(
+          from w in WatchlistEntry,
+            where: w.user_id == ^uid,
+            order_by: [desc: w.pinned, asc: w.symbol],
+            select: w.symbol
+        )
+    end
   end
 
   defp ensure_entry(symbol, by) do
     now = DateTime.utc_now() |> DateTime.truncate(:microsecond)
 
-    Repo.insert!(
-      %WatchlistEntry{
-        symbol: symbol,
-        added_at: now,
-        pinned: by == "manual",
-        promoted_by: by,
-        last_active_at: now
-      },
-      on_conflict: :nothing,
-      conflict_target: [:symbol]
-    )
+    case Counterflow.Accounts.owner_id() do
+      nil ->
+        :ok
+
+      uid ->
+        Repo.insert!(
+          %WatchlistEntry{
+            user_id: uid,
+            symbol: symbol,
+            added_at: now,
+            pinned: by == "manual",
+            promoted_by: by,
+            last_active_at: now
+          },
+          on_conflict: :nothing,
+          conflict_target: [:user_id, :symbol]
+        )
+    end
   end
 
   defp start_symbol(symbol, intervals) do

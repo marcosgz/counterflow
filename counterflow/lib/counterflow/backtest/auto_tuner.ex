@@ -99,6 +99,7 @@ defmodule Counterflow.Backtest.AutoTuner do
 
   defp enabled_symbols do
     Repo.all(from c in Config, where: c.auto_tune_enabled == true, select: c.symbol)
+    |> Enum.uniq()
   end
 
   defp do_run_one(symbol) do

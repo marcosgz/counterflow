@@ -9,39 +9,44 @@ defmodule CounterflowWeb.Router do
     plug :protect_from_forgery
     plug :put_secure_browser_headers
     plug CounterflowWeb.Plugs.BasicAuth
+    plug CounterflowWeb.Auth, :fetch_current_user
+  end
+
+  pipeline :require_user do
+    plug CounterflowWeb.Auth, :require_authenticated_user
   end
 
   pipeline :api do
     plug :accepts, ["json"]
   end
 
+  # Public auth endpoints
   scope "/", CounterflowWeb do
     pipe_through :browser
 
-    live "/", OverviewLive
-    live "/watchlist", WatchlistLive
-    live "/signals", SignalsLive
-    live "/symbol/:symbol", SymbolLive
-    live "/settings", SettingsLive
-    live "/settings/:symbol", SettingsLive
-    live "/paper", PaperLive
-    live "/debug", DebugLive
-    live "/backtest", BacktestLive
-    live "/audit", AuditLive
+    live "/login", LoginLive
+    get "/auth/finish", AuthController, :finish
+    get "/auth/logout", AuthController, :logout
   end
 
-  # Other scopes may use custom stacks.
-  # scope "/api", CounterflowWeb do
-  #   pipe_through :api
-  # end
+  scope "/", CounterflowWeb do
+    pipe_through [:browser, :require_user]
 
-  # Enable LiveDashboard in development
+    live_session :authenticated, on_mount: {CounterflowWeb.Auth, :ensure_authenticated} do
+      live "/", OverviewLive
+      live "/watchlist", WatchlistLive
+      live "/signals", SignalsLive
+      live "/symbol/:symbol", SymbolLive
+      live "/settings", SettingsLive
+      live "/settings/:symbol", SettingsLive
+      live "/paper", PaperLive
+      live "/debug", DebugLive
+      live "/backtest", BacktestLive
+      live "/audit", AuditLive
+    end
+  end
+
   if Application.compile_env(:counterflow, :dev_routes) do
-    # If you want to use the LiveDashboard in production, you should put
-    # it behind authentication and allow only admins to access it.
-    # If your application does not have an admins-only section yet,
-    # you can use Plug.BasicAuth to set up some basic authentication
-    # as long as you are also using SSL (which you should anyway).
     import Phoenix.LiveDashboard.Router
 
     scope "/dev" do

@@ -21,12 +21,15 @@ defmodule Counterflow.Broker.Paper do
   # ── account lifecycle ──────────────────────────────────────
 
   @doc "Create or fetch an account with the given id and starting balance."
-  def ensure_account(id, initial_balance \\ Decimal.new(10_000)) do
+  def ensure_account(id, initial_balance \\ Decimal.new(10_000), user_id \\ nil) do
+    uid = user_id || Counterflow.Accounts.owner_id() || raise "no owner user; create one first"
+
     case Repo.get(PaperAccount, id) do
       nil ->
         %PaperAccount{}
         |> PaperAccount.changeset(%{
           id: id,
+          user_id: uid,
           initial_balance: initial_balance,
           balance: initial_balance,
           config: %{

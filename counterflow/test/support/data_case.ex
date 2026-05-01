@@ -29,7 +29,22 @@ defmodule Counterflow.DataCase do
 
   setup tags do
     Counterflow.DataCase.setup_sandbox(tags)
+    Counterflow.DataCase.ensure_owner!()
     :ok
+  end
+
+  @doc "Ensure an owner user exists so per-user-scoped APIs don't blow up."
+  def ensure_owner! do
+    alias Counterflow.{Repo, Accounts.User}
+
+    case Repo.get_by(User, email: "owner@test.local") do
+      %User{} ->
+        :ok
+
+      nil ->
+        {:ok, _} = Counterflow.Accounts.register_user("owner@test.local", "test-password-123")
+        :ok
+    end
   end
 
   @doc """
