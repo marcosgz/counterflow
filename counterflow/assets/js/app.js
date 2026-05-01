@@ -29,12 +29,13 @@ import {ChartJSPanel} from "./hooks/chart_js"
 import {StatusClock} from "./hooks/status_clock"
 import {ThemeToggle} from "./hooks/theme_toggle"
 import {CellFlash} from "./hooks/cell_flash"
+import {Tooltip} from "./hooks/tooltip"
 
 const csrfToken = document.querySelector("meta[name='csrf-token']").getAttribute("content")
 const liveSocket = new LiveSocket("/live", Socket, {
   longPollFallbackMs: 2500,
   params: {_csrf_token: csrfToken},
-  hooks: {...colocatedHooks, TradingViewWidget, ChartJSPanel, StatusClock, ThemeToggle, CellFlash},
+  hooks: {...colocatedHooks, TradingViewWidget, ChartJSPanel, StatusClock, ThemeToggle, CellFlash, Tooltip},
 })
 
 // Show progress bar on live navigation and form submits

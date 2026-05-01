@@ -396,16 +396,16 @@ defmodule CounterflowWeb.PanelLive do
                   <.col_head sort={@sort} key="trades_1d" tip={tip_trades()}>Trades 1d</.col_head>
                 </th>
                 <th colspan={length(@intervals)} class="grp">
-                  <.group_head tip={tip_rsi()}>RSI</.group_head>
+                  <.group_head id="th-grp-rsi" tip={tip_rsi()}>RSI</.group_head>
                 </th>
                 <th colspan={length(@intervals)} class="grp">
-                  <.group_head tip={tip_exp_usd()}>EXP · USD</.group_head>
+                  <.group_head id="th-grp-expusd" tip={tip_exp_usd()}>EXP · USD</.group_head>
                 </th>
                 <th colspan={length(@intervals)} class="grp">
-                  <.group_head tip={tip_exp_btc()}>EXP · BTC</.group_head>
+                  <.group_head id="th-grp-expbtc" tip={tip_exp_btc()}>EXP · BTC</.group_head>
                 </th>
                 <th colspan={length(@intervals)} class="grp">
-                  <.group_head tip={tip_range()}>Range</.group_head>
+                  <.group_head id="th-grp-range" tip={tip_range()}>Range</.group_head>
                 </th>
               </tr>
               <tr>
@@ -487,7 +487,9 @@ defmodule CounterflowWeb.PanelLive do
 
   defp col_head(assigns) do
     ~H"""
-    <span class={"cf-th-wrap" <> if(@tip, do: " cf-th-tipped", else: "")}>
+    <span id={"th-col-" <> @key}
+          class={"cf-th-wrap" <> if(@tip, do: " cf-th-tipped", else: "")}
+          phx-hook={if @tip, do: "Tooltip"}>
       <button type="button" phx-click="sort" phx-value-key={@key} class="cf-th-btn"
               style={"text-align: " <> @align <> ";"}>
         {render_slot(@inner_block)}<span class="cf-th-arrow">{sort_indicator(@sort, @key)}</span>
@@ -510,11 +512,14 @@ defmodule CounterflowWeb.PanelLive do
   end
 
   attr :tip, :string, default: nil
+  attr :id, :string, required: true
   slot :inner_block, required: true
 
   defp group_head(assigns) do
     ~H"""
-    <span class={"cf-th-wrap" <> if(@tip, do: " cf-th-tipped", else: "")}>
+    <span id={@id}
+          class={"cf-th-wrap" <> if(@tip, do: " cf-th-tipped", else: "")}
+          phx-hook={if @tip, do: "Tooltip"}>
       <span class="cf-th-static">{render_slot(@inner_block)}</span>
       <div :if={@tip} class="cf-tip cf-tip-wide">{Phoenix.HTML.raw(@tip)}</div>
     </span>
