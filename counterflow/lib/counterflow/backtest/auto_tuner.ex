@@ -173,16 +173,7 @@ defmodule Counterflow.Backtest.AutoTuner do
     %{symbol: symbol, summary: summary}
   end
 
-  defp composite_score(%{total: 0}), do: 0.0
-
-  defp composite_score(s) do
-    if is_number(s.win_rate) and s.win_rate < 0.45 do
-      0.0
-    else
-      pf = if is_number(s.profit_factor), do: min(s.profit_factor, 10.0), else: 0.0
-      pf * (1 + :math.log10(s.total + 1))
-    end
-  end
+  defp composite_score(summary), do: Counterflow.Backtest.AutoTunerScoring.composite(summary)
 
   defp apply_winner(_symbol, _cfg, nil, _summary), do: :ok
 

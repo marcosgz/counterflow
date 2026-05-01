@@ -9,7 +9,7 @@ defmodule CounterflowWeb.BacktestLive do
   use CounterflowWeb, :live_view
 
   alias CounterflowWeb.Layouts
-  alias Counterflow.{Backtest.Runner, Watchlist}
+  alias Counterflow.{Backtest.Runner, Backtest.WalkForward, Watchlist}
 
   @impl true
   def mount(_params, _session, socket) do
@@ -23,6 +23,7 @@ defmodule CounterflowWeb.BacktestLive do
      |> assign(:form, default_form(default_symbol))
      |> assign(:running?, false)
      |> assign(:result, nil)
+     |> assign(:walkforward_result, nil)
      |> assign(:error, nil)}
   end
 
@@ -65,12 +66,44 @@ defmodule CounterflowWeb.BacktestLive do
     end
   end
 
+  def handle_event("run_walk_forward", %{"form" => form}, socket) do
+    parent = self()
+    symbol = form["symbol"]
+    interval = form["interval"]
+    total = String.to_integer(form["days"] || "30")
+
+    Task.start(fn ->
+      try do
+        result = WalkForward.run(symbol: symbol, interval: interval, total_days: total)
+        send(parent, {:walkforward_done, result})
+      rescue
+        e -> send(parent, {:backtest_error, Exception.message(e)})
+      end
+    end)
+
+    {:noreply,
+     socket
+     |> assign(:running?, true)
+     |> assign(:error, nil)
+     |> assign(:form, form)
+     |> assign(:result, nil)}
+  end
+
   @impl true
   def handle_info({:backtest_done, result, opts}, socket) do
     {:noreply,
      socket
      |> assign(:running?, false)
-     |> assign(:result, Map.put(result, :opts, opts))}
+     |> assign(:result, Map.put(result, :opts, opts))
+     |> assign(:walkforward_result, nil)}
+  end
+
+  def handle_info({:walkforward_done, result}, socket) do
+    {:noreply,
+     socket
+     |> assign(:running?, false)
+     |> assign(:walkforward_result, result)
+     |> assign(:result, nil)}
   end
 
   def handle_info({:backtest_error, msg}, socket) do
@@ -143,12 +176,76 @@ defmodule CounterflowWeb.BacktestLive do
               <button type="submit" class="cf-btn primary justify-center" disabled={@running?}>
                 <%= if @running?, do: "Running…", else: "Run Backtest" %>
               </button>
+              <button type="button" phx-click="run_walk_forward" phx-value-form="ignored"
+                      class="cf-btn justify-center" disabled={@running?}>
+                Walk-forward
+              </button>
               <span :if={@error} class="text-xs mono" style="color: var(--short);">{@error}</span>
             </div>
           </form>
         </div>
 
-        <%!-- Result --%>
+        <%!-- Walk-forward Result --%>
+        <div :if={@walkforward_result} class="space-y-3">
+          <section class="grid grid-cols-2 md:grid-cols-5 gap-3">
+            <.kpi label="Test windows" value={@walkforward_result.aggregate.windows} />
+            <.kpi label="Profitable windows"
+                  value={"#{@walkforward_result.aggregate.profitable_windows}/#{@walkforward_result.aggregate.windows}"}
+                  variant={consistency_variant(@walkforward_result.aggregate.consistency)} />
+            <.kpi label="Consistency" value={pct(@walkforward_result.aggregate.consistency)}
+                  variant={consistency_variant(@walkforward_result.aggregate.consistency)} />
+            <.kpi label="Total OOS R" value={fmt(@walkforward_result.aggregate.total_sum_r_oos, 2)}
+                  variant={class_for_r(@walkforward_result.aggregate.total_sum_r_oos)} />
+            <.kpi label="Avg OOS PF" value={fmt(@walkforward_result.aggregate.avg_pf_oos, 2)}
+                  variant={class_for_pf(@walkforward_result.aggregate.avg_pf_oos)} />
+          </section>
+
+          <div class="cf-panel">
+            <div class="cf-panel-head">
+              <span class="title"><span class="marker"></span>Per-window train → test</span>
+              <span class="cf-pill muted">overfit detector</span>
+            </div>
+            <table class="cf-table">
+              <thead>
+                <tr>
+                  <th>Train</th>
+                  <th>Test</th>
+                  <th class="num">Frozen thr</th>
+                  <th class="num">Train PF</th>
+                  <th class="num">Test PF</th>
+                  <th class="num">Test signals</th>
+                  <th class="num">Test win-rate</th>
+                  <th class="num">Test sum R</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr :for={w <- @walkforward_result.windows}>
+                  <td class="num" style="color: var(--ink-3); font-size: 11px;">
+                    {Calendar.strftime(w.train.from, "%m-%d")} → {Calendar.strftime(w.train.to, "%m-%d")}
+                  </td>
+                  <td class="num" style="color: var(--ink-3); font-size: 11px;">
+                    {Calendar.strftime(w.test.from, "%m-%d")} → {Calendar.strftime(w.test.to, "%m-%d")}
+                  </td>
+                  <td class="num">{fmt(w.frozen_threshold, 2)}</td>
+                  <td class="num" style="color: var(--ink-3);">
+                    {if w.train_winner, do: fmt(w.train_winner.profit_factor, 2), else: "—"}
+                  </td>
+                  <td class="num" style={class_color(w.test_summary.profit_factor)}>{fmt(w.test_summary.profit_factor, 2)}</td>
+                  <td class="num">{w.test_summary.total}</td>
+                  <td class="num">{pct(w.test_summary.win_rate)}</td>
+                  <td class="num" style={class_color(w.test_summary.sum_r)}>{fmt(w.test_summary.sum_r, 2)}</td>
+                </tr>
+                <tr :if={@walkforward_result.windows == []}>
+                  <td colspan="8" class="text-center py-6" style="color: var(--ink-3);">
+                    Need more historical data to build walk-forward windows.
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <%!-- Single-Window Result --%>
         <div :if={@result} class="space-y-3">
           <section class="grid grid-cols-2 md:grid-cols-6 gap-3">
             <.kpi label="Signals" value={@result.summary.total} />
@@ -260,6 +357,14 @@ defmodule CounterflowWeb.BacktestLive do
   defp class_for_r(r) when is_number(r) and r > 0, do: "long"
   defp class_for_r(r) when is_number(r) and r < 0, do: "short"
   defp class_for_r(_), do: ""
+
+  defp consistency_variant(c) when is_number(c) and c >= 0.7, do: "long"
+  defp consistency_variant(c) when is_number(c) and c < 0.4, do: "short"
+  defp consistency_variant(_), do: "warn"
+
+  defp class_color(n) when is_number(n) and n > 0, do: "color: var(--long);"
+  defp class_color(n) when is_number(n) and n < 0, do: "color: var(--short);"
+  defp class_color(_), do: ""
 
   defp side_pill_style("long"), do: "background: var(--long-bg); color: var(--long);"
   defp side_pill_style("short"), do: "background: var(--short-bg); color: var(--short);"
