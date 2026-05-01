@@ -611,6 +611,64 @@ html, body {
 .cf-panel-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .cf-panel-table tbody tr:hover td { background: var(--panel-2); }
 
+/* Sortable header — invisible button styling so headers still read like
+ * text but are click-targets. */
+.cf-th-btn {
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  text-align: right;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  white-space: nowrap;
+  width: 100%;
+}
+.cf-th-btn:hover { color: var(--ink); }
+.cf-th-arrow { color: var(--long); margin-left: 2px; font-size: 9px; }
+.cf-th-static { display: inline-block; }
+
+/* Header tooltip — hover anywhere on the header text to reveal a small
+ * panel with the metric explanation. CSS-only via :hover on the wrap. */
+.cf-th-wrap {
+  position: relative;
+  display: inline-block;
+  width: 100%;
+}
+.cf-th-tipped { cursor: help; }
+.cf-tip {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  z-index: 50;
+  width: 280px;
+  background: var(--panel);
+  border: 1px solid var(--line-2);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-family: 'Manrope', ui-sans-serif, sans-serif;
+  font-size: 11px;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--ink-2);
+  text-transform: none;
+  letter-spacing: normal;
+  white-space: normal;
+  text-align: left;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.25);
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 120ms ease, visibility 120ms ease;
+  pointer-events: none;
+}
+.cf-tip-wide { width: 320px; }
+.cf-tip strong { color: var(--ink); font-weight: 600; }
+.cf-tip em { color: var(--ink); font-style: normal; font-weight: 600; }
+.cf-th-tipped:hover .cf-tip { opacity: 1; visibility: visible; }
+
 /* Range column squares — color follows the EXP palette via the cell's
  * background style; the inner span is just a fixed-size pip. */
 .cf-range-square {

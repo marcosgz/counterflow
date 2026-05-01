@@ -39,9 +39,22 @@ defmodule CounterflowWeb.PanelLive do
      |> assign(:intervals, @intervals)
      |> assign(:loading?, true)
      |> assign(:rows, [])
+     |> assign(:sort, nil)
      |> assign(:last_loaded_at, nil)
      |> tap(fn s -> if connected?(s), do: send(self(), :load) end)}
   end
+
+  @impl true
+  def handle_event("sort", %{"key" => key}, socket) do
+    {:noreply, assign(socket, :sort, next_sort(socket.assigns.sort, key))}
+  end
+
+  def handle_event("refresh", _params, socket), do: {:noreply, do_load(socket)}
+
+  defp next_sort(nil, key), do: %{key: key, direction: :desc}
+  defp next_sort(%{key: key, direction: :desc}, key), do: %{key: key, direction: :asc}
+  defp next_sort(%{key: key, direction: :asc}, key), do: nil
+  defp next_sort(_, key), do: %{key: key, direction: :desc}
 
   @impl true
   def handle_info(:load, socket), do: {:noreply, do_load(socket)}
@@ -65,9 +78,6 @@ defmodule CounterflowWeb.PanelLive do
   end
 
   def handle_info(_other, socket), do: {:noreply, socket}
-
-  @impl true
-  def handle_event("refresh", _params, socket), do: {:noreply, do_load(socket)}
 
   defp do_load(socket) do
     symbols = watchlist_symbols()
@@ -362,29 +372,59 @@ defmodule CounterflowWeb.PanelLive do
             <thead>
               <tr>
                 <th rowspan="2">#</th>
-                <th rowspan="2" style="text-align: left;">Symbol</th>
-                <th rowspan="2" class="num">Price</th>
-                <th rowspan="2" class="num">24h%</th>
-                <th rowspan="2" class="num">OI 5m</th>
+                <th rowspan="2" style="text-align: left;">
+                  <.col_head sort={@sort} key="symbol" tip="Trading pair (e.g. BTCUSDT). Click the symbol cell to drill into its full chart, multi-indicator panels, and recent signals." align="left">Symbol</.col_head>
+                </th>
+                <th rowspan="2" class="num">
+                  <.col_head sort={@sort} key="price" tip={tip_price()}>Price</.col_head>
+                </th>
+                <th rowspan="2" class="num">
+                  <.col_head sort={@sort} key="change_pct" tip={tip_change()}>24h%</.col_head>
+                </th>
+                <th rowspan="2" class="num">
+                  <.col_head sort={@sort} key="oi" tip={tip_oi()}>OI 5m</.col_head>
+                </th>
                 <th rowspan="2"></th>
-                <th rowspan="2" class="num">LSR 5m</th>
+                <th rowspan="2" class="num">
+                  <.col_head sort={@sort} key="lsr" tip={tip_lsr()}>LSR 5m</.col_head>
+                </th>
                 <th rowspan="2"></th>
-                <th rowspan="2" class="num">FR 5m</th>
-                <th rowspan="2" class="num">Trades 1d</th>
-                <th colspan={length(@intervals)} class="grp">RSI</th>
-                <th colspan={length(@intervals)} class="grp">EXP · USD</th>
-                <th colspan={length(@intervals)} class="grp">EXP · BTC</th>
-                <th colspan={length(@intervals)} class="grp">Range</th>
+                <th rowspan="2" class="num">
+                  <.col_head sort={@sort} key="fr" tip={tip_fr()}>FR 5m</.col_head>
+                </th>
+                <th rowspan="2" class="num">
+                  <.col_head sort={@sort} key="trades_1d" tip={tip_trades()}>Trades 1d</.col_head>
+                </th>
+                <th colspan={length(@intervals)} class="grp">
+                  <.group_head tip={tip_rsi()}>RSI</.group_head>
+                </th>
+                <th colspan={length(@intervals)} class="grp">
+                  <.group_head tip={tip_exp_usd()}>EXP · USD</.group_head>
+                </th>
+                <th colspan={length(@intervals)} class="grp">
+                  <.group_head tip={tip_exp_btc()}>EXP · BTC</.group_head>
+                </th>
+                <th colspan={length(@intervals)} class="grp">
+                  <.group_head tip={tip_range()}>Range</.group_head>
+                </th>
               </tr>
               <tr>
-                <th :for={i <- @intervals} class="num sub">{i}</th>
-                <th :for={i <- @intervals} class="num sub">{i}</th>
-                <th :for={i <- @intervals} class="num sub">{i}</th>
-                <th :for={i <- @intervals} class="num sub">{i}</th>
+                <th :for={i <- @intervals} class="num sub">
+                  <.sub_head sort={@sort} key={"rsi:#{i}"}>{i}</.sub_head>
+                </th>
+                <th :for={i <- @intervals} class="num sub">
+                  <.sub_head sort={@sort} key={"exp_usd:#{i}"}>{i}</.sub_head>
+                </th>
+                <th :for={i <- @intervals} class="num sub">
+                  <.sub_head sort={@sort} key={"exp_btc:#{i}"}>{i}</.sub_head>
+                </th>
+                <th :for={i <- @intervals} class="num sub">
+                  <.sub_head sort={@sort} key={"range:#{i}"}>{i}</.sub_head>
+                </th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={r <- @rows} id={"row-#{r.symbol}"}>
+              <tr :for={r <- apply_sort(@rows, @sort)} id={"row-#{r.symbol}"}>
                 <td class="num idx">{r.idx}</td>
                 <td>
                   <a href={~p"/symbol/#{r.symbol}"} style="color: var(--ink); font-weight: 600;">
@@ -434,6 +474,157 @@ defmodule CounterflowWeb.PanelLive do
         </p>
       </div>
     </Layouts.shell>
+    """
+  end
+
+  # ── header sub-components ─────────────────────────────────
+
+  attr :sort, :map, default: nil
+  attr :key, :string, required: true
+  attr :tip, :string, default: nil
+  attr :align, :string, default: "right"
+  slot :inner_block, required: true
+
+  defp col_head(assigns) do
+    ~H"""
+    <span class={"cf-th-wrap" <> if(@tip, do: " cf-th-tipped", else: "")}>
+      <button type="button" phx-click="sort" phx-value-key={@key} class="cf-th-btn"
+              style={"text-align: " <> @align <> ";"}>
+        {render_slot(@inner_block)}<span class="cf-th-arrow">{sort_indicator(@sort, @key)}</span>
+      </button>
+      <div :if={@tip} class="cf-tip">{Phoenix.HTML.raw(@tip)}</div>
+    </span>
+    """
+  end
+
+  attr :sort, :map, default: nil
+  attr :key, :string, required: true
+  slot :inner_block, required: true
+
+  defp sub_head(assigns) do
+    ~H"""
+    <button type="button" phx-click="sort" phx-value-key={@key} class="cf-th-btn">
+      {render_slot(@inner_block)}<span class="cf-th-arrow">{sort_indicator(@sort, @key)}</span>
+    </button>
+    """
+  end
+
+  attr :tip, :string, default: nil
+  slot :inner_block, required: true
+
+  defp group_head(assigns) do
+    ~H"""
+    <span class={"cf-th-wrap" <> if(@tip, do: " cf-th-tipped", else: "")}>
+      <span class="cf-th-static">{render_slot(@inner_block)}</span>
+      <div :if={@tip} class="cf-tip cf-tip-wide">{Phoenix.HTML.raw(@tip)}</div>
+    </span>
+    """
+  end
+
+  # ── tooltip texts (HTML allowed via Phoenix.HTML.raw) ─────
+
+  defp tip_price do
+    """
+    <strong>Last close price</strong> in the symbol's quote currency (USDT for our universe).
+    Updates whenever a new candle closes.
+    """
+  end
+
+  defp tip_change do
+    """
+    <strong>Percent change over the last 24 hours.</strong>
+    Green if up, red if down. Use it to see which symbols moved the most overnight —
+    big moves often precede continuation or mean-reversion setups.
+    """
+  end
+
+  defp tip_oi do
+    """
+    <strong>Open Interest</strong> = total notional of all open futures positions on this symbol.
+    Higher OI = more leverage stacked = more potential energy if price moves against the crowd.
+    The arrow shows the trend vs the prior 5-minute reading: ▲ stacking, ▼ unwinding.<br><br>
+    <em>How to use:</em> a sharp rise in OI alongside flat or falling price is the classic
+    setup for a long-squeeze (Counterflow's bread-and-butter signal).
+    """
+  end
+
+  defp tip_lsr do
+    """
+    <strong>Long/Short Ratio (account-weighted)</strong> = retail account count holding longs
+    divided by accounts holding shorts. Above 1 = more longs, below 1 = more shorts.<br><br>
+    <em>How to use:</em> retail is usually wrong at extremes. LSR > 2.5 with rising price often
+    marks a local top; LSR < 0.5 with falling price often marks a local bottom.
+    """
+  end
+
+  defp tip_fr do
+    """
+    <strong>Funding Rate (in bps per 8h cycle).</strong>
+    Positive = longs pay shorts (longs are crowded), negative = shorts pay longs.<br><br>
+    <em>How to use:</em> sustained funding > +30 bps means longs are paying expensively to hold
+    — primed for a flush. Sustained funding < -10 bps signals shorts paying — primed for a squeeze.
+    The dashboard's strategy weights extremes here automatically.
+    """
+  end
+
+  defp tip_trades do
+    """
+    <strong>Total trade count over the last 24h.</strong>
+    Spike-detection metric: execution algos slice large orders into many small fills,
+    so a sudden surge in trade count often catches "smart money" entering before price moves.
+    """
+  end
+
+  defp tip_rsi do
+    """
+    <strong>Relative Strength Index (Wilder, 14-period).</strong>
+    Bounded 0..100. Cells are background-shaded by zone:<br>
+    &nbsp;&nbsp;&gt; 70 (red) = overbought, momentum stretched<br>
+    &nbsp;&nbsp;&lt; 30 (green) = oversold, capitulation territory<br><br>
+    Each timeframe column shows the latest RSI on that bar interval. Click a sub-header
+    (1d/4h/1h/...) to sort the panel by that timeframe — easy way to find the most
+    overbought 5m candle, etc.<br><br>
+    <em>How to use:</em> classic mean-reversion is "fade extremes when multiple timeframes agree."
+    Look for a row where RSI is &gt;75 on multiple short timeframes but the 1d is still mid-range —
+    that's a candidate for a counter-trend short.
+    """
+  end
+
+  defp tip_exp_usd do
+    """
+    <strong>Exponential — momentum vs USDT</strong> (signed integer in basis points).
+    Distance of the last close from its 50-period SMA, expressed as bps.
+    Positive = price is above its mean (uptrend), negative = below (downtrend);
+    intensity scales with magnitude.<br><br>
+    <em>How to use:</em> +200 means the price is 2% above its 50-bar mean — a strong
+    uptrend on that timeframe. Reading multiple timeframes in agreement (all green
+    or all red) confirms a sustained move.
+    """
+  end
+
+  defp tip_exp_btc do
+    """
+    <strong>Exponential — relative strength vs BTC</strong>.
+    Same calc as EXP·USD but on the (symbol price / BTC price) ratio. Tells you whether
+    the symbol is outperforming or underperforming Bitcoin on each timeframe.<br><br>
+    <em>How to use:</em> bullish on the market overall? Pick rows that are green on
+    EXP·BTC for the 1h/4h — those are the names beating BTC, where alts typically outpace.
+    Negative on EXP·BTC even in a green market = underperformer; a bear-market favorite to short.
+    """
+  end
+
+  defp tip_range do
+    """
+    <strong>Range Pulse</strong> — bucketed percentile of (high − low) / close,
+    ranked against the symbol's own last 60 bars on that timeframe.<br><br>
+    Squares: <span style="color: rgba(140,140,150,0.8);">●</span> calm,
+    <span style="color: rgba(34,211,238,0.9);">●</span> mild,
+    <span style="color: rgba(245,158,11,0.9);">●</span> warm,
+    <span style="color: rgba(244,63,94,0.9);">●</span> hot,
+    <span style="color: rgba(34,197,94,0.95);">●</span> very hot,
+    <span style="color: rgba(217,70,239,0.95);">●</span> extreme.<br><br>
+    <em>How to use:</em> sudden Range squares lighting up across short timeframes signal a
+    volatility expansion — opportunity for breakout traders, danger zone for tight stops.
     """
   end
 
@@ -550,4 +741,41 @@ defmodule CounterflowWeb.PanelLive do
   end
 
   defp format_int_signed(_), do: ""
+
+  # ── sort plumbing ──────────────────────────────────────────
+
+  defp apply_sort(rows, nil), do: rows
+
+  defp apply_sort(rows, %{key: key, direction: dir}) do
+    Enum.sort(rows, fn a, b -> sort_lt(sort_value(a, key), sort_value(b, key), dir) end)
+  end
+
+  defp sort_lt(nil, nil, _), do: false
+  # nils always sort last regardless of direction
+  defp sort_lt(nil, _, _), do: false
+  defp sort_lt(_, nil, _), do: true
+  defp sort_lt(a, b, :asc), do: a < b
+  defp sort_lt(a, b, :desc), do: a > b
+
+  defp sort_value(row, "symbol"), do: row.symbol
+  defp sort_value(row, "price"), do: dec_to_float(row.price)
+  defp sort_value(row, "change_pct"), do: row.change_pct
+  defp sort_value(row, "oi"), do: dec_to_float(row.oi)
+  defp sort_value(row, "lsr"), do: dec_to_float(row.lsr)
+  defp sort_value(row, "fr"), do: dec_to_float(row.fr)
+  defp sort_value(row, "trades_1d"), do: row.trades_1d
+  defp sort_value(row, "rsi:" <> i), do: Map.get(row.rsi, i)
+  defp sort_value(row, "exp_usd:" <> i), do: Map.get(row.exp_usd, i)
+  defp sort_value(row, "exp_btc:" <> i), do: Map.get(row.exp_btc, i)
+  defp sort_value(row, "range:" <> i), do: Map.get(row.range, i)
+  defp sort_value(_, _), do: nil
+
+  defp dec_to_float(nil), do: nil
+  defp dec_to_float(%Decimal{} = d), do: Decimal.to_float(d)
+  defp dec_to_float(n) when is_number(n), do: n / 1
+  defp dec_to_float(_), do: nil
+
+  defp sort_indicator(%{key: key, direction: :desc}, key), do: " ▾"
+  defp sort_indicator(%{key: key, direction: :asc}, key), do: " ▴"
+  defp sort_indicator(_, _), do: ""
 end
