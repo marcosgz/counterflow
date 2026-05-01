@@ -611,6 +611,29 @@ html, body {
 .cf-panel-table .num { text-align: right; font-variant-numeric: tabular-nums; }
 .cf-panel-table tbody tr:hover td { background: var(--panel-2); }
 
+/* Range column squares — color follows the EXP palette via the cell's
+ * background style; the inner span is just a fixed-size pip. */
+.cf-range-square {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border-radius: 1px;
+  background: currentColor;
+  opacity: 0.85;
+}
+
+/* Directional flash: applied by the CellFlash JS hook on text-content
+ * change. Briefly outlines the cell with green (up) or red (down). */
+@keyframes cf-cell-flash-up {
+  0%   { box-shadow: inset 0 0 0 2px rgba(34,197,94,0.85); }
+  100% { box-shadow: inset 0 0 0 2px rgba(0,0,0,0); }
+}
+@keyframes cf-cell-flash-down {
+  0%   { box-shadow: inset 0 0 0 2px rgba(244,63,94,0.85); }
+  100% { box-shadow: inset 0 0 0 2px rgba(0,0,0,0); }
+}
+.cf-flash-up   { animation: cf-cell-flash-up 1.5s ease-out; }
+.cf-flash-down { animation: cf-cell-flash-down 1.5s ease-out; }
+
 /* Resizable TradingView container — drag the bottom-right grip to resize.
  * Browser-native resize handle; the widget iframe inside fills 100%/100%. */
 .cf-tv-resizable {

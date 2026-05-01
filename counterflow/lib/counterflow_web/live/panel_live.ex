@@ -19,15 +19,19 @@ defmodule CounterflowWeb.PanelLive do
 
   alias CounterflowWeb.Layouts
   alias Counterflow.{Repo, Watchlist}
-  alias Counterflow.Indicators.{BucketedForce, RSI}
+  alias Counterflow.Indicators.{Exponential, RangePulse, RSI}
   alias Counterflow.Market.{Candle, OpenInterest, LongShortRatio, FundingRate}
+  alias Phoenix.PubSub
 
   @intervals ["1d", "4h", "1h", "30m", "15m", "5m", "1m"]
   @history 60
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket), do: :timer.send_interval(30_000, :refresh)
+    if connected?(socket) do
+      :timer.send_interval(30_000, :refresh)
+      PubSub.subscribe(Counterflow.PubSub, "candles:closed:firehose")
+    end
 
     {:ok,
      socket
@@ -42,6 +46,24 @@ defmodule CounterflowWeb.PanelLive do
   @impl true
   def handle_info(:load, socket), do: {:noreply, do_load(socket)}
   def handle_info(:refresh, socket), do: {:noreply, do_load(socket)}
+
+  # Real-time: when a candle closes for a watchlist symbol, recompute
+  # just that row instead of reloading the whole panel.
+  def handle_info({:closed_candle, %Counterflow.Market.Candle{symbol: sym}}, socket) do
+    if Enum.any?(socket.assigns.rows, &(&1.symbol == sym)) do
+      btc_closes_by_interval = btc_closes_by_interval()
+      new_row = build_row(sym, length(socket.assigns.rows), btc_closes_by_interval)
+
+      rows =
+        socket.assigns.rows
+        |> Enum.map(fn r -> if r.symbol == sym, do: %{new_row | idx: r.idx}, else: r end)
+
+      {:noreply, assign(socket, :rows, rows)}
+    else
+      {:noreply, socket}
+    end
+  end
+
   def handle_info(_other, socket), do: {:noreply, socket}
 
   @impl true
@@ -71,43 +93,63 @@ defmodule CounterflowWeb.PanelLive do
     funding_map = latest_funding_map(symbols)
     daily_map = daily_change_map(symbols)
     trades_map = trades_1d_map(symbols)
+    btc_closes = btc_closes_by_interval()
 
-    rsi_exp_map =
+    indicator_map =
       symbols
-      |> Task.async_stream(&{&1, rsi_exp_for_symbol(&1)},
+      |> Task.async_stream(&{&1, indicators_for_symbol(&1, btc_closes)},
         max_concurrency: 8,
-        timeout: 10_000,
+        timeout: 15_000,
         on_timeout: :kill_task
       )
-      |> Enum.map(fn
-        {:ok, {sym, data}} -> {sym, data}
-        _ -> {nil, %{}}
+      |> Enum.flat_map(fn
+        {:ok, {sym, data}} -> [{sym, data}]
+        _ -> []
       end)
-      |> Enum.reject(&match?({nil, _}, &1))
       |> Map.new()
 
     symbols
     |> Enum.with_index(1)
     |> Enum.map(fn {symbol, idx} ->
-      daily = Map.get(daily_map, symbol, %{price: nil, change_pct: nil})
-      oi = Map.get(oi_map, symbol, %{value: nil, trend: :flat})
-      lsr = Map.get(lsr_map, symbol, %{value: nil, trend: :flat})
-
-      %{
-        idx: idx,
-        symbol: symbol,
-        price: daily.price,
-        change_pct: daily.change_pct,
-        oi: oi.value,
-        oi_trend: oi.trend,
-        lsr: lsr.value,
-        lsr_trend: lsr.trend,
-        fr: Map.get(funding_map, symbol),
-        trades_1d: Map.get(trades_map, symbol, 0),
-        rsi: Map.get(rsi_exp_map, symbol, %{}).rsi || %{},
-        exp: Map.get(rsi_exp_map, symbol, %{}).exp || %{}
-      }
+      compose_row(symbol, idx, oi_map, lsr_map, funding_map, daily_map, trades_map, indicator_map)
     end)
+  end
+
+  # Build a single row by symbol. Used for incremental updates when a
+  # closed candle lands and only one symbol's data needs recomputing.
+  defp build_row(symbol, idx, btc_closes) do
+    oi_map = latest_oi_map([symbol])
+    lsr_map = latest_lsr_map([symbol])
+    funding_map = latest_funding_map([symbol])
+    daily_map = daily_change_map([symbol])
+    trades_map = trades_1d_map([symbol])
+    indicator_map = %{symbol => indicators_for_symbol(symbol, btc_closes)}
+
+    compose_row(symbol, idx, oi_map, lsr_map, funding_map, daily_map, trades_map, indicator_map)
+  end
+
+  defp compose_row(symbol, idx, oi_map, lsr_map, funding_map, daily_map, trades_map, indicator_map) do
+    daily = Map.get(daily_map, symbol, %{price: nil, change_pct: nil})
+    oi = Map.get(oi_map, symbol, %{value: nil, trend: :flat})
+    lsr = Map.get(lsr_map, symbol, %{value: nil, trend: :flat})
+    indicators = Map.get(indicator_map, symbol, %{})
+
+    %{
+      idx: idx,
+      symbol: symbol,
+      price: daily.price,
+      change_pct: daily.change_pct,
+      oi: oi.value,
+      oi_trend: oi.trend,
+      lsr: lsr.value,
+      lsr_trend: lsr.trend,
+      fr: Map.get(funding_map, symbol),
+      trades_1d: Map.get(trades_map, symbol, 0),
+      rsi: Map.get(indicators, :rsi, %{}),
+      exp_usd: Map.get(indicators, :exp_usd, %{}),
+      exp_btc: Map.get(indicators, :exp_btc, %{}),
+      range: Map.get(indicators, :range, %{})
+    }
   end
 
   # ── batch queries ──────────────────────────────────────────
@@ -222,29 +264,65 @@ defmodule CounterflowWeb.PanelLive do
     |> Map.new(fn {sym, n} -> {sym, n || 0} end)
   end
 
-  # ── per-symbol RSI + EXP (TF level) across all intervals ──
+  # ── per-symbol RSI + EXP (USD + BTC) + Range across all intervals ──
 
-  defp rsi_exp_for_symbol(symbol) do
-    Enum.reduce(@intervals, %{rsi: %{}, exp: %{}}, fn interval, acc ->
+  defp indicators_for_symbol(symbol, btc_closes) do
+    Enum.reduce(@intervals, %{rsi: %{}, exp_usd: %{}, exp_btc: %{}, range: %{}}, fn interval, acc ->
       candles = load_candles(symbol, interval)
+      closes = Enum.map(candles, & &1.close)
 
       rsi =
-        if length(candles) >= 15 do
-          closes = Enum.map(candles, & &1.close)
+        if length(closes) >= 15 do
           RSI.last(closes, 14)
         end
 
-      exp_level =
-        if candles == [] do
-          0
+      exp_usd =
+        if length(closes) >= 50 do
+          Exponential.calculate(closes)
         else
-          BucketedForce.calculate(candles, &BucketedForce.trades_extractor/1).level
+          0
         end
+
+      exp_btc =
+        if symbol == "BTCUSDT" do
+          # BTC vs itself is meaningless; show the absolute strength too.
+          exp_usd
+        else
+          base = Map.get(btc_closes, interval, [])
+          if length(closes) >= 50 and length(base) >= 50 do
+            Exponential.calculate_relative(closes, base)
+          else
+            0
+          end
+        end
+
+      range_level = RangePulse.calculate(candles)
 
       %{
         rsi: Map.put(acc.rsi, interval, rsi),
-        exp: Map.put(acc.exp, interval, exp_level)
+        exp_usd: Map.put(acc.exp_usd, interval, exp_usd),
+        exp_btc: Map.put(acc.exp_btc, interval, exp_btc),
+        range: Map.put(acc.range, interval, range_level)
       }
+    end)
+  end
+
+  # BTC closes per interval, loaded once per panel render and reused as the
+  # baseline for the EXP-vs-BTC column.
+  defp btc_closes_by_interval do
+    Enum.reduce(@intervals, %{}, fn interval, acc ->
+      closes =
+        Repo.all(
+          from c in Candle,
+            where:
+              c.symbol == "BTCUSDT" and c.interval == ^interval and c.closed == true,
+            order_by: [desc: c.time],
+            limit: @history,
+            select: c.close
+        )
+        |> Enum.reverse()
+
+      Map.put(acc, interval, closes)
     end)
   end
 
@@ -294,38 +372,55 @@ defmodule CounterflowWeb.PanelLive do
                 <th rowspan="2" class="num">FR 5m</th>
                 <th rowspan="2" class="num">Trades 1d</th>
                 <th colspan={length(@intervals)} class="grp">RSI</th>
-                <th colspan={length(@intervals)} class="grp">EXP</th>
+                <th colspan={length(@intervals)} class="grp">EXP · USD</th>
+                <th colspan={length(@intervals)} class="grp">EXP · BTC</th>
+                <th colspan={length(@intervals)} class="grp">Range</th>
               </tr>
               <tr>
+                <th :for={i <- @intervals} class="num sub">{i}</th>
+                <th :for={i <- @intervals} class="num sub">{i}</th>
                 <th :for={i <- @intervals} class="num sub">{i}</th>
                 <th :for={i <- @intervals} class="num sub">{i}</th>
               </tr>
             </thead>
             <tbody>
-              <tr :for={r <- @rows}>
+              <tr :for={r <- @rows} id={"row-#{r.symbol}"}>
                 <td class="num idx">{r.idx}</td>
                 <td>
                   <a href={~p"/symbol/#{r.symbol}"} style="color: var(--ink); font-weight: 600;">
                     {r.symbol}
                   </a>
                 </td>
-                <td class="num">{format_price(r.price)}</td>
-                <td class="num" style={pct_color(r.change_pct)}>{format_pct(r.change_pct)}</td>
-                <td class="num">{format_oi(r.oi)}</td>
+                <td class="num" id={"px-#{r.symbol}"} phx-hook="CellFlash">{format_price(r.price)}</td>
+                <td class="num" style={pct_color(r.change_pct)}
+                    id={"chg-#{r.symbol}"} phx-hook="CellFlash">{format_pct(r.change_pct)}</td>
+                <td class="num" id={"oi-#{r.symbol}"} phx-hook="CellFlash">{format_oi(r.oi)}</td>
                 <td class="num">{trend_arrow(r.oi_trend)}</td>
-                <td class="num">{format_lsr(r.lsr)}</td>
+                <td class="num" id={"lsr-#{r.symbol}"} phx-hook="CellFlash">{format_lsr(r.lsr)}</td>
                 <td class="num">{trend_arrow(r.lsr_trend)}</td>
-                <td class="num" style={fr_color(r.fr)}>{format_fr(r.fr)}</td>
-                <td class="num" style="color: var(--ink-3);">{format_int(r.trades_1d)}</td>
-                <td :for={i <- @intervals} class="num cell" style={rsi_cell_style(Map.get(r.rsi, i))}>
+                <td class="num" style={fr_color(r.fr)}
+                    id={"fr-#{r.symbol}"} phx-hook="CellFlash">{format_fr(r.fr)}</td>
+                <td class="num" style="color: var(--ink-3);"
+                    id={"tr-#{r.symbol}"} phx-hook="CellFlash">{format_int(r.trades_1d)}</td>
+                <td :for={i <- @intervals} class="num cell" style={rsi_cell_style(Map.get(r.rsi, i))}
+                    id={"rsi-#{r.symbol}-#{i}"} phx-hook="CellFlash">
                   {format_rsi(Map.get(r.rsi, i))}
                 </td>
-                <td :for={i <- @intervals} class="num cell" style={exp_cell_style(Map.get(r.exp, i))}>
-                  {Map.get(r.exp, i)}
+                <td :for={i <- @intervals} class="num cell" style={exp_value_style(Map.get(r.exp_usd, i))}
+                    id={"expusd-#{r.symbol}-#{i}"} phx-hook="CellFlash">
+                  {format_int_signed(Map.get(r.exp_usd, i))}
+                </td>
+                <td :for={i <- @intervals} class="num cell" style={exp_value_style(Map.get(r.exp_btc, i))}
+                    id={"expbtc-#{r.symbol}-#{i}"} phx-hook="CellFlash">
+                  {format_int_signed(Map.get(r.exp_btc, i))}
+                </td>
+                <td :for={i <- @intervals} class="num cell" style={exp_cell_style(Map.get(r.range, i))}
+                    id={"rng-#{r.symbol}-#{i}"} phx-hook="CellFlash">
+                  <span :if={Map.get(r.range, i, 0) > 0} class="cf-range-square"></span>
                 </td>
               </tr>
               <tr :if={@rows == []}>
-                <td colspan="20" class="text-center py-8" style="color: var(--ink-3);">
+                <td colspan="38" class="text-center py-8" style="color: var(--ink-3);">
                   <%= if @loading?, do: "Loading…", else: "Add symbols to your watchlist to populate the panel." %>
                 </td>
               </tr>
@@ -428,4 +523,31 @@ defmodule CounterflowWeb.PanelLive do
   defp exp_cell_style(5), do: "background: rgba(34,197,94,0.65); color: var(--bg); font-weight: 700;"
   defp exp_cell_style(6), do: "background: rgba(217,70,239,0.85); color: var(--bg); font-weight: 700;"
   defp exp_cell_style(_), do: ""
+
+  # EXP · USD / EXP · BTC are signed integers — color by sign with intensity
+  # scaled to the magnitude.
+  defp exp_value_style(nil), do: ""
+  defp exp_value_style(0), do: "color: var(--ink-3);"
+
+  defp exp_value_style(n) when is_integer(n) do
+    intensity = min(abs(n) / 250.0, 1.0)
+    alpha = 0.10 + intensity * 0.50
+
+    cond do
+      n > 0 -> "background: rgba(34,197,94,#{Float.round(alpha, 2)}); color: var(--ink);"
+      n < 0 -> "background: rgba(244,63,94,#{Float.round(alpha, 2)}); color: var(--ink);"
+      true -> ""
+    end
+  end
+
+  defp exp_value_style(_), do: ""
+
+  defp format_int_signed(nil), do: ""
+  defp format_int_signed(0), do: "0"
+
+  defp format_int_signed(n) when is_integer(n) do
+    if n > 0, do: "+#{n}", else: Integer.to_string(n)
+  end
+
+  defp format_int_signed(_), do: ""
 end
