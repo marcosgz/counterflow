@@ -35,7 +35,9 @@ defmodule Counterflow.Bridge.SignalToPaper do
 
     if enabled? do
       PubSub.subscribe(Counterflow.PubSub, "signals:new")
-      Paper.ensure_account(@account_id, @default_balance)
+      # Don't create the paper account at boot — there may be no owner user
+      # yet, and bootstrapping (`mix counterflow.create_user`) needs the app
+      # to start first. The account is lazy-created on the first signal.
       {:ok, %{account_id: @account_id}}
     else
       :ignore
@@ -47,6 +49,8 @@ defmodule Counterflow.Bridge.SignalToPaper do
     cfg = Config.for(sig.symbol, sig.interval)
 
     if cfg.enable_paper do
+      # Lazy-create the paper account here — owner user must exist by now.
+      Paper.ensure_account(state.account_id, @default_balance)
       Task.start(fn -> place_from_signal(sig, cfg, state.account_id) end)
     end
 

@@ -12,6 +12,13 @@ defmodule CounterflowWeb.Auth do
 
   alias Counterflow.Accounts
 
+  # Plug behaviour — dispatches to the named function so the router can use
+  # `plug CounterflowWeb.Auth, :fetch_current_user` etc.
+  def init(action) when is_atom(action), do: action
+
+  def call(conn, :fetch_current_user), do: fetch_current_user(conn, [])
+  def call(conn, :require_authenticated_user), do: require_authenticated_user(conn, [])
+
   def log_in_user(conn, user) do
     conn
     |> renew_session()

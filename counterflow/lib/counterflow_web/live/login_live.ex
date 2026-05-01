@@ -4,7 +4,6 @@ defmodule CounterflowWeb.LoginLive do
   use CounterflowWeb, :live_view
 
   alias Counterflow.Accounts
-  alias CounterflowWeb.Layouts
 
   @impl true
   def mount(_params, _session, socket) do

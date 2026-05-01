@@ -8,8 +8,6 @@ defmodule CounterflowWeb.Plugs.BasicAuth do
   Implementation uses Plug.BasicAuth with constant-time comparison.
   """
 
-  import Plug.Conn
-
   def init(opts), do: opts
 
   def call(conn, _opts) do
